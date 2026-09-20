@@ -16,6 +16,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build-dataset": "tsx scripts/build-dataset.ts",
     "prepare-training": "tsx scripts/prepare-training.ts",
+    "distill": "tsx scripts/distill.ts",
+    "eval": "tsx scripts/eval.ts",
     "selftest": "tsx scripts/selftest.ts"
   },
   "devDependencies": {

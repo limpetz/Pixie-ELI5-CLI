@@ -54,6 +54,42 @@ console.log("StreamFilter:");
   out += f.flush();
   check("lets normal code fences through", out, "```python\nprint('hi')\n```");
 }
+{
+  const f = new StreamFilter();
+  let out = "";
+  for (const c of ["Sure! Let's create", " the file.\n\n", '{"name": "write_file", "arg', 'uments": {"path": "x", "content": "y"}}']) out += f.filter(c);
+  out += f.flush();
+  check("cuts mid-prose before embedded JSON", out, "Sure! Let's create the file.\n\n");
+}
+{
+  const f = new StreamFilter();
+  let out = "";
+  for (const c of ["Here you go.\n\n{\"na", 'me": "write_file", "arguments": {"path": "x", "content": "y"}}']) out += f.filter(c);
+  out += f.flush();
+  check("catches opener split across chunks", out, "Here you go.\n\n");
+}
+{
+  const f = new StreamFilter();
+  const text = "Hello there, friend! This is a longer reply that keeps flowing along nicely.";
+  let out = "";
+  for (const c of text.match(/.{1,3}/gs) ?? []) out += f.filter(c);
+  out += f.flush();
+  check("guard window preserves prose exactly", out, text);
+}
+{
+  // Interplay: after mid-prose JSON suppression, parser must find the embedded call.
+  const f = new StreamFilter();
+  const full = 'Sure, let\'s create it!\n\n{"name": "write_file", "arguments": {"path": "colors.txt", "content": "Red\\nBlue"}}';
+  let shown = "";
+  for (const c of full.match(/.{1,7}/gs) ?? []) shown += f.filter(c);
+  shown += f.flush();
+  check("suppressed tail not shown", shown.includes("{\"name\""), false);
+  check(
+    "parser finds embedded call in full content",
+    tryParseToolCall(full)?.name,
+    "write_file",
+  );
+}
 
 /* ── tryParseToolCall ── */
 console.log("tryParseToolCall:");
@@ -71,6 +107,11 @@ check("parses <tool_call> tag", tryParseToolCall('<tool_call>{"name": "list_file
 });
 check("rejects prose", tryParseToolCall("I will now read the file."), null);
 check("rejects JSON without name", tryParseToolCall('{"arguments": {}}'), null);
+check(
+  "parses JSON embedded after prose",
+  tryParseToolCall('Sure, let\'s create it!\n\n{"name": "write_file", "arguments": {"path": "colors.txt", "content": "Red\\nBlue"}}')?.name,
+  "write_file",
+);
 
 /* ── dataset extraction ── */
 console.log("dataset extraction:");

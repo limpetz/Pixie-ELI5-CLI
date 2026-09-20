@@ -72,7 +72,24 @@ source .venv/bin/activate
 pip install "unsloth[cu121-torch230]" datasets trl transformers
 \`\`\`
 
-## 2. Sanity-check the dataset
+## 2. (Optional but recommended) Distill extra traces from a teacher model
+
+```bash
+npm run distill -- --num 30 --teacher ollama://llama3.1:8b   # free, local
+# or: npm run distill -- --num 30 --teacher openai://gpt-4o-mini  (needs OPENAI_API_KEY)
+```
+
+This appends grounded teacher traces to `training/distilled.jsonl`. To train on
+sessions + distilled traces together, set in `lora_config.py`:
+
+```python
+DATASET_FILE = "training/dataset.jsonl,training/distilled.jsonl"
+```
+
+(The included train.py reads one file; the multi-file line above works if you
+concatenate the files first: `cat training/dataset.jsonl training/distilled.jsonl > training/all.jsonl`.)
+
+## 3. Sanity-check the dataset
 
 \`\`\`bash
 python -c "import json; rows=[json.loads(l) for l in open('training/dataset.jsonl', encoding='utf-8')]; print(len(rows), 'pairs; example user msg:', rows[0]['messages'][1]['content'][:80])"
@@ -80,7 +97,7 @@ python -c "import json; rows=[json.loads(l) for l in open('training/dataset.json
 
 Aim for 50+ pairs minimum; several hundred is better.
 
-## 3. Train
+## 4. Train
 
 Save this as \`training/train.py\` (it reads your \`lora_config.py\`):
 
@@ -132,7 +149,7 @@ cd training && python train.py
 
 On a consumer GPU this takes minutes for a few hundred short examples.
 
-## 4. Test your Pixie-7B
+## 5. Test your Pixie-7B
 
 \`\`\`bash
 # Quick chat test:
@@ -148,7 +165,13 @@ print(t.decode(ids[0][ids['input_ids'].shape[1]:], skip_special_tokens=True))
 "
 \`\`\`
 
-## 5. Use it inside Pixie
+## 6. Use it inside Pixie
+
+After training, score it against the base model before shipping it into your CLI:
+
+```bash
+npm run eval -- --a ollama://pixie-7b --b ollama://qwen2.5-coder:7b
+```
 
 Export to GGUF and drop it into Ollama:
 

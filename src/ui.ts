@@ -7,6 +7,7 @@ import type { ChatMessage, PixieConfig } from "./types.js";
 import { PIXIE_HOME, loadConfig, saveConfig } from "./config.js";
 import { SessionLogger } from "./session.js";
 import { runTurn, toolLabel, shortArgs } from "./agent.js";
+import { Spinner } from "./spinner.js";
 
 const C = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
@@ -268,12 +269,15 @@ export async function runRepl(): Promise<void> {
       continue;
     }
 
+    const spinner = new Spinner("pixie is thinking");
     try {
       let didStream = false;
       let open = false;
       const result = await runTurn(cfg, history, input, logger, {
         autoRun,
+        onThinkStart: () => spinner.start(),
         onToolStart: (name, args) => {
+          spinner.stop();
           if (open) {
             process.stdout.write("\n");
             open = false;
@@ -281,6 +285,7 @@ export async function runRepl(): Promise<void> {
           process.stdout.write(C.dim(`  ✦ pixie ${toolLabel(name).toLowerCase()}${shortArgs(args)}…\n`));
         },
         onToken: (text) => {
+          spinner.stop();
           if (!open) {
             process.stdout.write(`  ${C.cyan("pixie › ")}`);
             open = true;
@@ -289,18 +294,21 @@ export async function runRepl(): Promise<void> {
           process.stdout.write(text);
         },
         onStreamEnd: () => {
+          spinner.stop();
           if (open) {
             process.stdout.write("\n");
             open = false;
           }
         },
         approveBash: async (command) => {
+          spinner.stop();
           console.log(C.yellow(`\n  Pixie wants to run: ${C.bold(command)}`));
           const ok = (await ask("  Allow it? (y/n): ")).trim().toLowerCase().startsWith("y");
           if (ok) autoRun = true;
           return ok;
         },
       });
+      spinner.stop();
       if (!didStream) {
         for (const line of result.reply.split("\n")) console.log(`  ${C.cyan("pixie ›")} ${line}`);
       }
@@ -309,6 +317,7 @@ export async function runRepl(): Promise<void> {
       history.push({ role: "assistant", content: result.reply });
       if (history.length > 40) history.splice(0, history.length - 40);
     } catch (err) {
+      spinner.stop();
       const msg = err instanceof Error ? err.message : String(err);
       console.log(C.red(`\n  Hmm, something went wrong talking to the model:`));
       console.log(C.red(`  ${msg}`));

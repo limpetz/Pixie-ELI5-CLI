@@ -1,89 +1,74 @@
 /**
  * Guards streamed output so tool-call JSON never reaches the terminal.
  *
- * Small local models often emit tool calls as JSON text ({"name": ...}),
- * <tool_call> blocks, or ```json fences instead of structured fields. The
- * verdict isn't knowable from the first chunk (a lone "{" or "<tool" could
- * still become prose), so this filter buffers the ambiguous head of the
- * stream and decides as soon as it can: prose → emit live, tool-call text →
- * swallow (the backend parses it into a tool call after the stream ends).
- *
- * Note: a reply that *displays* JSON will also be buffered and then printed
- * via the batch fallback — slightly less live, never lost.
+ * Small local models emit tool calls in messy ways: bare JSON, <tool_call>
+ * tags, ```json fences, or JSON *embedded after prose*. The verdict isn't
+ * knowable from the first chunk, so this filter:
+ *   1. buffers the ambiguous head of the stream until it can classify it
+ *   2. in text mode, holds back a small guard window and scans it — if a
+ *      tool-call opener appears ({"name"…, <tool_call>, ```json{…), it cuts
+ *      there and suppresses the rest (the backend parses it into a tool call)
+ *   3. flushes any held prose at end of stream, so nothing is ever lost
  */
 export class StreamFilter {
-  private head = "";
+  /** Openers that mean "this is a tool call, stop showing text". */
+  private static readonly OPENERS = [/\{\s*"name"/, /<tool_call>/, /```(?:json)?\s*\{\s*"name"/];
+
+  private buf = ""; // pending text (undecided head or guarded tail)
   private mode: "undecided" | "text" | "json" = "undecided";
 
   /** Returns the text to show the user for this chunk ("" if swallowed/buffered). */
   filter(chunk: string): string {
     if (this.mode === "json") return "";
-    if (this.mode === "text") return chunk;
-    this.head += chunk;
-    const t = this.head.trimStart();
+    this.buf += chunk;
 
-    if (t.length === 0) {
-      // All whitespace so far — if it stays whitespace too long, treat as prose.
-      if (this.head.length > 64) {
-        this.mode = "text";
-        const out = this.head;
-        this.head = "";
-        return out;
+    if (this.mode === "undecided") {
+      const t = this.buf.trimStart();
+      if (t.length === 0) {
+        if (this.buf.length > 64) {
+          this.mode = "text";
+        }
+        return "";
       }
-      return "";
-    }
-
-    // JSON tool call (possibly after whitespace).
-    if (t.startsWith("{")) {
-      this.mode = "json";
-      return "";
-    }
-
-    // <tool_call> block — including partial prefixes like "<t" or "<tool_".
-    if (t.startsWith("<tool_call>")) {
-      this.mode = "json";
-      return "";
-    }
-    if ("<tool_call>".startsWith(t)) return ""; // could still become the tag
-
-    // Fenced blocks: buffer the opener + a peek at the body.
-    if (t[0] === "`") {
-      if (!t.startsWith("```")) return ""; // partial backticks so far
-      const rest = t.replace(/^```[a-zA-Z0-9_-]*/, "");
-      const body = rest.trimStart();
-      if (body.length === 0) return ""; // opener only — wait for body
-      if (body.startsWith("{")) {
+      if (t.startsWith("{") || t.startsWith("<tool_call>") || /^```(?:json)?\s*\{/.test(t)) {
         this.mode = "json";
         return "";
       }
-      // Real code or prose inside the fence → stream it all.
+      if (t[0] === "`") {
+        // Could be a fence opener we can't classify yet; wait for more.
+        if (!/^```(?:[a-zA-Z0-9_-]*)?/.test(t) || t.length < 10) return "";
+        if (!t.includes("\n")) return "";
+      }
+      // Anything else is prose.
       this.mode = "text";
-      const out = this.head;
-      this.head = "";
-      return out;
     }
 
-    // Give up waiting after a reasonable amount — treat as prose.
-    if (this.head.length > 1024) {
-      this.mode = "text";
-      const out = this.head;
-      this.head = "";
-      return out;
+    // Text mode: scan the guarded tail for a tool-call opener appearing mid-prose.
+    for (const op of StreamFilter.OPENERS) {
+      const m = this.buf.match(op);
+      if (m && m.index !== undefined) {
+        const out = this.buf.slice(0, m.index);
+        this.buf = "";
+        this.mode = "json";
+        return out;
+      }
     }
 
-    this.mode = "text";
-    const out = this.head;
-    this.head = "";
-    return out;
-  }
-
-  /** Call at end of stream: flushes a stream that never became prose or JSON. */
-  flush(): string {
-    if (this.mode === "undecided") {
-      const out = this.head;
-      this.head = "";
+    // Hold back the last few chars so an opener split across chunks is caught.
+    const GUARD = 24;
+    if (this.buf.length > GUARD) {
+      const out = this.buf.slice(0, this.buf.length - GUARD);
+      this.buf = this.buf.slice(-GUARD);
       return out;
     }
     return "";
+  }
+
+  /** Call at end of stream: flushes any prose that was still being guarded. */
+  flush(): string {
+    if (this.mode === "json") return "";
+    const out = this.buf;
+    this.buf = "";
+    return out;
   }
 }
