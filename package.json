@@ -1,0 +1,26 @@
+{
+  "name": "pixie",
+  "version": "0.1.0",
+  "description": "Pixie — a local-first AI coding & reasoning agent. Phase 1 of the Pixie model roadmap.",
+  "type": "module",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "bin": {
+    "pixie": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build-dataset": "tsx scripts/build-dataset.ts",
+    "prepare-training": "tsx scripts/prepare-training.ts",
+    "selftest": "tsx scripts/selftest.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

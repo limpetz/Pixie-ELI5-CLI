@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.pixie-test-home/
+pixie-test-ws/
+training/
+.venv/
+*.log
+*.gguf
