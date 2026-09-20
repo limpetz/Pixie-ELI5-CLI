@@ -74,20 +74,23 @@ pip install "unsloth[cu121-torch230]" datasets trl transformers
 
 ## 2. (Optional but recommended) Distill extra traces from a teacher model
 
-```bash
+\`\`\`bash
 npm run distill -- --num 30 --teacher ollama://llama3.1:8b   # free, local
 # or: npm run distill -- --num 30 --teacher openai://gpt-4o-mini  (needs OPENAI_API_KEY)
-```
+\`\`\`
 
-This appends grounded teacher traces to `training/distilled.jsonl`. To train on
-sessions + distilled traces together, set in `lora_config.py`:
+This appends grounded teacher traces to \`training/distilled.jsonl\`. To train on
+sessions + distilled traces together, concatenate them first:
 
-```python
-DATASET_FILE = "training/dataset.jsonl,training/distilled.jsonl"
-```
+\`\`\`bash
+cat training/dataset.jsonl training/distilled.jsonl > training/all.jsonl
+\`\`\`
 
-(The included train.py reads one file; the multi-file line above works if you
-concatenate the files first: `cat training/dataset.jsonl training/distilled.jsonl > training/all.jsonl`.)
+then set in \`lora_config.py\`:
+
+\`\`\`python
+DATASET_FILE = "training/all.jsonl"
+\`\`\`
 
 ## 3. Sanity-check the dataset
 
@@ -169,9 +172,9 @@ print(t.decode(ids[0][ids['input_ids'].shape[1]:], skip_special_tokens=True))
 
 After training, score it against the base model before shipping it into your CLI:
 
-```bash
+\`\`\`bash
 npm run eval -- --a ollama://pixie-7b --b ollama://qwen2.5-coder:7b
-```
+\`\`\`
 
 Export to GGUF and drop it into Ollama:
 

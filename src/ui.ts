@@ -35,7 +35,7 @@ function welcome(cfg: PixieConfig): void {
   console.log(`  Mode       ${cfg.beginnerMode ? "Beginner-friendly" : "Pro"}`);
   console.log(C.dim(`
   Talk to me like a person: "make a website about my cat"
-  Commands: /help  /new  /resume  /model  /mode  /auto  /tools  /stats  /exit
+  Commands: /help  /new  /resume  /workspace  /model  /mode  /auto  /tools  /stats  /exit
 `));
 }
 
@@ -45,6 +45,7 @@ function help(): void {
   /help          Show this help
   /new           Start a fresh conversation
   /resume        Continue a past conversation
+  /workspace     Change the workspace folder (keeps your settings)
   /model         Switch the model Pixie thinks with
   /mode          Toggle beginner ↔ pro mode
   /auto          Toggle auto-run of commands (default: ask first)
@@ -192,7 +193,7 @@ export async function runRepl(): Promise<void> {
   welcome(cfg);
 
   const history: ChatMessage[] = [];
-  const logger = new SessionLogger(cfg.workspace, {
+  let logger = new SessionLogger(cfg.workspace, {
     model: cfg.provider.model,
     beginnerMode: cfg.beginnerMode,
   });
@@ -311,6 +312,32 @@ export async function runRepl(): Promise<void> {
       cfg = await pickModel(cfg, ask);
       saveConfig(cfg);
       console.log(`  Model: ${cfg.provider.model}`);
+      continue;
+    }
+    if (input === "/workspace") {
+      console.log(`  Current workspace: ${cfg.workspace}`);
+      console.log(C.dim("  Pixie can only touch files inside this folder."));
+      const next = (await ask("  New workspace folder (Enter to cancel): ")).trim();
+      if (!next || next.startsWith("/")) {
+        console.log(C.dim("  Cancelled."));
+        continue;
+      }
+      const ws = resolve(next);
+      if (ws === cfg.workspace) {
+        console.log(C.yellow("  That's already the current workspace."));
+        continue;
+      }
+      mkdirSync(ws, { recursive: true });
+      logger.write({ type: "workspace_switch", to: ws });
+      cfg = { ...cfg, workspace: ws };
+      saveConfig(cfg);
+      history.length = 0; // fresh conversation in a new place
+      logger = new SessionLogger(cfg.workspace, {
+        model: cfg.provider.model,
+        beginnerMode: cfg.beginnerMode,
+      });
+      console.log(C.green(`  ✔ Workspace is now ${ws}`));
+      console.log(C.dim("  Conversation reset. /resume lists sessions for this workspace."));
       continue;
     }
 

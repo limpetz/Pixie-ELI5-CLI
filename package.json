@@ -7,12 +7,12 @@
     "node": ">=18.17"
   },
   "bin": {
-    "pixie": "dist/index.js"
+    "pixie": "dist/src/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/index.ts",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build-dataset": "tsx scripts/build-dataset.ts",
     "prepare-training": "tsx scripts/prepare-training.ts",
