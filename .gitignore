@@ -3,8 +3,14 @@ dist/
 .pixie-test-home/
 pixie-test-ws/
 .search-test-ws/
-training/
 .venv/
 Y/
 *.log
 *.gguf
+# training artifacts: keep the pipeline code, ignore the heavy outputs
+training/*
+!training/train.py
+!training/export-gguf.py
+!training/lora_config.py
+!training/TRAINING.md
+!training/dataset_template.json

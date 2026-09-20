@@ -24,8 +24,8 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileS
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { BEGINNER_SYSTEM_PROMPT } from "../src/agent.js";
 import { runTurn } from "../src/agent.js";
+import { extractPairs } from "./build-dataset.js";
 import { SessionLogger } from "../src/session.js";
 import type { PixieConfig, ProviderConfig } from "../src/types.js";
 
@@ -187,13 +187,16 @@ async function main(): Promise<void> {
         console.log("skipped (weak trace)");
         continue;
       }
-      const pair = {
-        messages: [
-          { role: "system", content: BEGINNER_SYSTEM_PROMPT },
-          { role: "user", content: task },
-          { role: "assistant", content: result.reply.trim() },
-        ],
-      };
+      // Rebuild the FULL conversation (including tool-call rounds and tool
+      // results) from the session log this run just wrote — a coding agent
+      // must learn to emit tool calls, not to narrate having done things.
+      const exchange = extractPairs(logger.path, "distill").pop();
+      if (!exchange) {
+        skipped++;
+        console.log("skipped (no healthy exchange)");
+        continue;
+      }
+      const pair = { messages: exchange.messages };
       const key = createHash("sha256").update(JSON.stringify(pair.messages)).digest("hex").slice(0, 40);
       if (seen.has(key)) {
         skipped++;

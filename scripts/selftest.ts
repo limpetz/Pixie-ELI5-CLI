@@ -134,15 +134,33 @@ console.log("dataset extraction:");
     JSON.stringify({ type: "assistant_message", content: "ok" }),
   ];
   writeFileSync(file, lines.join("\n"), "utf8");
-  const pairs = extractPairs(file, false);
+  const pairs = extractPairs(file);
   check("keeps only good pairs", pairs.length, 1);
   check(
-    "pair has system/user/assistant",
+    "tool-faithful roles (system/user/assistant+tools/tool/assistant)",
     pairs[0]?.messages.map((m) => m.role),
-    ["system", "user", "assistant"],
+    ["system", "user", "assistant", "tool", "assistant"],
   );
-  const withTools = extractPairs(file, true)[0];
-  check("tool activity appended with flag", withTools ? withTools.messages[1].content.includes("[Tool activity:") : false, true);
+  const tc = pairs[0]?.messages[2];
+  check(
+    "assistant tool call in Qwen format",
+    tc && tc.tool_calls?.[0]?.function.name === "write_file" &&
+      tc.tool_calls[0].function.arguments.path === "poem.txt",
+    true,
+  );
+  check("tool result carried into tool message", pairs[0]?.messages[3].content, "Wrote poem.txt");
+  // A narration-only exchange (no tool calls) must be dropped — that's the
+  // failure mode that taught pixie-7b v1 to claim actions in prose.
+  const narrFile = join(dir, "narration.jsonl");
+  writeFileSync(
+    narrFile,
+    [
+      JSON.stringify({ type: "user_message", content: "make a poem file" }),
+      JSON.stringify({ type: "assistant_message", content: "What I did:\n- Created poem.txt with a lovely poem for you today." }),
+    ].join("\n"),
+    "utf8",
+  );
+  check("drops narration-only exchanges", extractPairs(narrFile).length, 0);
   rmSync(dir, { recursive: true, force: true });
 }
 
