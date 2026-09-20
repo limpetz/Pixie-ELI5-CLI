@@ -2,7 +2,9 @@ node_modules/
 dist/
 .pixie-test-home/
 pixie-test-ws/
+.search-test-ws/
 training/
 .venv/
+Y/
 *.log
 *.gguf

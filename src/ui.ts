@@ -58,11 +58,19 @@ function help(): void {
   • Commands always ask before running (unless you turn on /auto).`);
 }
 
-async function listLocalModels(): Promise<string[]> {
+interface LocalModel {
+  name: string;
+  toolCapable: boolean;
+}
+
+async function listLocalModels(): Promise<LocalModel[]> {
   try {
     const res = await fetch("http://localhost:11434/api/tags", { signal: AbortSignal.timeout(4000) });
-    const data = (await res.json()) as { models?: { name: string }[] };
-    return (data.models ?? []).map((m) => m.name);
+    const data = (await res.json()) as { models?: { name: string; capabilities?: string[] }[] };
+    return (data.models ?? []).map((m) => ({
+      name: m.name,
+      toolCapable: (m.capabilities ?? []).includes("tools"),
+    }));
   } catch {
     return [];
   }
@@ -74,9 +82,22 @@ interface Ask {
 
 async function pickModel(cfg: PixieConfig, ask: Ask): Promise<PixieConfig> {
   console.log(C.dim("  Checking which models are available locally…"));
-  const local = await listLocalModels();
-  console.log(`  ${C.bold("Choose Pixie's brain:")}`);
-  local.forEach((m, i) => console.log(`   ${i + 1}. ${m}  ${C.dim("(local, free)")}`));
+  const all = await listLocalModels();
+  // Pixie acts through tools — models without tool support can't do the job.
+  const local = all.filter((m) => m.toolCapable);
+  const skipped = all.length - local.length;
+  if (skipped > 0) {
+    console.log(C.dim(`  (hiding ${skipped} model${skipped === 1 ? "" : "s"} that can't use tools)`));
+  }
+  if (local.length === 0) {
+    console.log(C.yellow("  No tool-capable local models found. Pull one first, e.g.:"));
+    console.log(C.yellow("    ollama pull qwen2.5-coder:7b"));
+  }
+  console.log(`  ${C.bold("Choose Pixie's brain:")} ${C.dim("(local models that can act for you)")}`);
+  local.forEach((m, i) => {
+    const rec = m.name.startsWith("qwen2.5-coder:7b") ? C.green("  ← recommended") : "";
+    console.log(`   ${i + 1}. ${m.name}  ${C.dim("(local, free)")}${rec}`);
+  });
   const n = local.length;
   console.log(`   ${n + 1}. Use a cloud API instead (OpenAI-compatible)`);
 
@@ -85,7 +106,7 @@ async function pickModel(cfg: PixieConfig, ask: Ask): Promise<PixieConfig> {
   if (idx >= 1 && idx <= n) {
     return {
       ...cfg,
-      provider: { kind: "ollama", baseUrl: "http://localhost:11434", model: local[idx - 1] },
+      provider: { kind: "ollama", baseUrl: "http://localhost:11434", model: local[idx - 1].name },
     };
   }
   if (idx === n + 1) {
@@ -157,6 +178,16 @@ export async function runRepl(): Promise<void> {
 
   const existing = loadConfig();
   let cfg = existing ?? (await firstRunSetup(ask));
+
+  // Warn if the saved model can't use tools (it would fail every turn).
+  if (cfg.provider.kind === "ollama") {
+    const locals = await listLocalModels();
+    const match = locals.find((m) => m.name === cfg.provider.model);
+    if (match && !match.toolCapable) {
+      console.log(C.yellow(`\n  ⚠  '${cfg.provider.model}' does not support tools, so Pixie can't act with it.`));
+      console.log(C.yellow("     Run /model to pick a tool-capable model (e.g. qwen2.5-coder:7b).\n"));
+    }
+  }
 
   welcome(cfg);
 
