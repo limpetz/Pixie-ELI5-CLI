@@ -32,7 +32,7 @@ Works with any cloud model too (OpenAI, Groq, OpenRouter, LM Studio…) via the 
 
 Inside its workspace folder (and **only** there):
 
-- 📂 look at your files, 👁 read them, ✏️ create and 🔧 edit them
+- 📂 look at your files, 👁 read them, ✏️ create, 🔧 edit and 🗑️ delete them
 - 🔍 search for words across the project
 - ▶️ run commands — always **asking you first** in beginner mode
 
@@ -49,6 +49,8 @@ Beginner mode is on by default:
 - Plain-English answers, no unexplained jargon
 - Every task ends with **"What I did"** and a **"Try it yourself"** section
 - Friendly error messages instead of stack traces
+- Launch banner shows Pixie's version, model, and workspace at a glance
+- A live spinner with elapsed seconds shows when Pixie is thinking
 
 Toggle with `/mode` when you want terser, pro-style replies.
 
@@ -90,12 +92,13 @@ Mix both files when training (`DATASET_FILE` in `training/lora_config.py`).
 
 ### Evals (`npm run eval`)
 
-Objective head-to-head scoring — each task must produce verifiable results (files exist, content matches checks):
+Objective head-to-head scoring over a **24-task suite** in three tiers — `core` (single-step), `multi` (multi-file/folder/edit/search-and-act) and `hard` (commands, follow-up turns, structured edits, deletion, multi-file reasoning). Tasks can seed files and include follow-up turns, and every run is appended to `training/eval-results.json` so fine-tuning progress is measurable over time:
 
 ```bash
 npm run eval                                                    # pixie-7b vs qwen2.5-coder:7b
 npm run eval -- --a ollama://pixie-7b --b ollama://llama3.1:8b
+npm run eval -- --limit 10                                      # quick smoke run
 npm run eval -- --tasks-file training/my-evals.jsonl            # your own tasks
 ```
 
-Task format (JSONL): `{"prompt": "create math.txt with 12 times 12 as a sentence", "checks": ["file:math.txt", "regex:144"]}` — check kinds: `file:`, `contains:`, `regex:`, `reply-contains:`, `reply-regex:`.
+Task format (JSONL): `{"prompt": "…", "checks": ["file:math.txt", "regex:144"], "tier": "hard", "seed": [{"path": "…", "content": "…"}], "followUps": ["…"]}` — check kinds: `file:`, `missing:`, `contains:`, `not-contains:`, `regex:`, `file-count:`, `lines:<name>:<min>-<max>`, `reply-contains:`, `reply-regex:`.

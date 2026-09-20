@@ -66,10 +66,14 @@ export async function runTurn(
   let toolRounds = 0;
   let autoApprove = hooks.autoRun ?? !cfg.beginnerMode;
   let nudged = false;
+  let temp0Retry = false;
 
   while (toolRounds < cfg.maxToolRounds) {
     hooks.onThinkStart?.();
-    const { content, toolCalls } = await chat(cfg, messages, TOOL_SCHEMAS, hooks.onToken);
+    const { content, toolCalls } = temp0Retry
+      ? await chat({ ...cfg, temperature: 0 }, messages, TOOL_SCHEMAS)
+      : await chat(cfg, messages, TOOL_SCHEMAS, hooks.onToken);
+    temp0Retry = false;
     hooks.onStreamEnd?.();
 
     if (toolCalls.length === 0) {
@@ -77,6 +81,7 @@ export async function runTurn(
       // instead of actually calling tools. Give them exactly one chance to act.
       if (!nudged && toolRounds === 0 && looksLikeDescribedAction(content)) {
         nudged = true;
+        temp0Retry = true; // retry deterministically (temp 0): same narration can't repeat
         messages.push({ role: "assistant", content });
         messages.push({
           role: "user",
@@ -155,9 +160,9 @@ export async function runTurn(
  * Detects the classic small-model failure: a summary of actions that were
  * never actually performed with tools (e.g. "What I did: - Created file…",
  * "Sure! I'll create a file…"). Kept conservative to avoid false positives
- * on plain informational answers.
+ * on plain informational answers. Exported for selftests.
  */
-function looksLikeDescribedAction(text: string): boolean {
+export function looksLikeDescribedAction(text: string): boolean {
   const t = text.trim();
   if (t.length < 12) return false;
   if (/what i did:/i.test(t)) return true;
@@ -174,6 +179,7 @@ export function toolLabel(name: string): string {
     read_file: "Reading",
     write_file: "Writing",
     edit_file: "Editing",
+    delete_file: "Deleting",
     search_files: "Searching",
     run_command: "Running a command",
   };

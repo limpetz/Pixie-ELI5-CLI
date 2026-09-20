@@ -23,6 +23,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { BEGINNER_SYSTEM_PROMPT } from "../src/agent.js";
 import { runTurn } from "../src/agent.js";
 import { SessionLogger } from "../src/session.js";
@@ -168,7 +169,11 @@ async function main(): Promise<void> {
   if (!KEEP) console.log(`\nScratch workspace kept at ${WORKSPACE} (inspect it, then delete or rerun without --keep).`);
 }
 
-main().catch((err) => {
-  console.error("Distillation failed:", err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+// Only run when invoked directly (not when imported by tests).
+const invoked = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : "";
+if (invoked === import.meta.url) {
+  main().catch((err) => {
+    console.error("Distillation failed:", err instanceof Error ? err.message : err);
+    process.exit(1);
+  });
+}

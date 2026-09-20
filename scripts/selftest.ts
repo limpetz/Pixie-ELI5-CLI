@@ -7,6 +7,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { StreamFilter } from "../src/stream.js";
 import { tryParseToolCall } from "../src/toolparse.js";
+import { looksLikeDescribedAction } from "../src/agent.js";
+import { runChecks } from "./eval.js";
+import { executeTool } from "../src/tools.js";
 
 let failures = 0;
 function check(name: string, actual: unknown, expected: unknown): void {
@@ -140,6 +143,73 @@ console.log("dataset extraction:");
   );
   const withTools = extractPairs(file, true)[0];
   check("tool activity appended with flag", withTools ? withTools.messages[1].content.includes("[Tool activity:") : false, true);
+  rmSync(dir, { recursive: true, force: true });
+}
+
+/* ── narration detector ── */
+console.log("looksLikeDescribedAction:");
+check("detects 'What I did' summary", looksLikeDescribedAction("What I did:\n- Created poem.txt"), true);
+check("detects 'I'll create…'", looksLikeDescribedAction("Sure! I'll create a file for you right away."), true);
+check("ignores informational answers", looksLikeDescribedAction("There are 7 continents on Earth. In one short sentence, that is the answer."), false);
+check("ignores greetings", looksLikeDescribedAction("Hello! How can I help you today?"), false);
+
+/* ── eval harness checks ── */
+console.log("runChecks (eval harness):");
+{
+  const dir = mkdtempSync(join(tmpdir(), "pixie-eval-"));
+  writeFileSync(join(dir, "config.json"), '{"theme": "dark", "volume": 3}', "utf8");
+  writeFileSync(join(dir, "list.txt"), "a\nb\nc", "utf8");
+
+  const r1 = runChecks(["file:config.json", "contains:DARK", "not-contains:light-mode", "lines:list.txt:3-3", "file-count:2"], dir, "done!");
+  check("all positive checks pass", r1.pass, true);
+
+  const r2 = runChecks(["missing:ghost.txt"], dir, "");
+  check("missing passes when absent", r2.pass, true);
+
+  const r3 = runChecks(["missing:config.json"], dir, "");
+  check("missing fails when present", r3.pass, false);
+
+  const r4 = runChecks(["not-contains:dark"], dir, "");
+  check("not-contains fails when present", r4.pass, false);
+
+  const r5 = runChecks(["lines:list.txt:4-5"], dir, "");
+  check("lines range enforced", r5.pass, false);
+
+  const r6 = runChecks(["file-count:3"], dir, "");
+  check("file-count exact", r6.pass, false);
+
+  const r7 = runChecks(["reply-regex:DONE"], dir, "All DONE here");
+  check("reply-regex case-insensitive", r7.pass, true);
+
+  rmSync(dir, { recursive: true, force: true });
+}
+
+/* ── tool implementations (integration) ── */
+console.log("tools (integration):");
+{
+  const dir = mkdtempSync(join(tmpdir(), "pixie-tools-"));
+  mkdirSync(join(dir, "photos"), { recursive: true });
+  writeFileSync(join(dir, "riddle2.txt"), "An old wizard lives here.\n", "utf8");
+  writeFileSync(join(dir, "photos", "album.txt"), "no magic here\n", "utf8");
+  const opts = { autoApproveBash: false };
+
+  const r1 = executeTool(dir, "search_files", { query: "wizard" }, opts);
+  check("search finds text in nested file", r1.output.includes("riddle2.txt:1") && r1.output.includes("wizard"), true);
+
+  const r2 = executeTool(dir, "write_file", { path: "photos", content: "oops" }, opts);
+  check("write onto folder path gives actionable error", r2.output.includes("already a FOLDER"), true);
+
+  writeFileSync(join(dir, "blocker.txt"), "x", "utf8");
+  const r3 = executeTool(dir, "write_file", { path: "blocker.txt/album.txt", content: "x" }, opts);
+  check("write under file path suggests delete_file", r3.output.includes("delete_file"), true);
+
+  const r4 = executeTool(dir, "delete_file", { path: "blocker.txt" }, opts);
+  const r5 = executeTool(dir, "write_file", { path: "blocker.txt/album.txt", content: "now it works" }, opts);
+  check("delete_file clears the way for write", r4.ok && r5.ok, true);
+
+  const r6 = executeTool(dir, "list_files", {}, opts);
+  check("list_files shows nested folders", r6.output.includes("photos/"), true);
+
   rmSync(dir, { recursive: true, force: true });
 }
 

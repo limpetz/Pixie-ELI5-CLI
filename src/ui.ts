@@ -18,9 +18,17 @@ const C = {
   bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
 };
 
+const VERSION: string = (() => {
+  try {
+    return (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: string }).version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+})();
+
 function welcome(cfg: PixieConfig): void {
   console.log(C.cyan(`
-  ✦  Pixie — your friendly coding companion
+  ✦  Pixie v${VERSION} — your friendly coding companion
   ─────────────────────────────────────────`));
   console.log(`  Model      ${cfg.provider.model}${cfg.fallback ? C.dim(`  (fallback: ${cfg.fallback.model})`) : ""}`);
   console.log(`  Workspace  ${cfg.workspace}`);
@@ -94,7 +102,12 @@ async function firstRunSetup(ask: Ask): Promise<PixieConfig> {
   console.log(C.bold("\n  Welcome! Let's set Pixie up (one time only).\n"));
   console.log(C.dim("  Pixie needs a folder to work in — a project folder on your computer."));
   console.log(C.dim("  Press Enter to use a folder called 'workspace' in your home directory.\n"));
-  const wsInput = (await ask("  Workspace folder (Enter for default): ")).trim();
+  let wsInput = (await ask("  Workspace folder (Enter for default): ")).trim();
+  if (wsInput.startsWith("/")) {
+    // Piped input (e.g. '/exit' in scripted runs) must not become a folder name.
+    console.log(C.yellow("  (That looked like a command, not a folder — using the default.)"));
+    wsInput = "";
+  }
   const workspace = wsInput ? resolve(wsInput) : join(homedir(), "workspace");
   mkdirSync(workspace, { recursive: true });
   console.log(C.dim(`  Workspace: ${workspace}`));
@@ -193,6 +206,7 @@ export async function runRepl(): Promise<void> {
   👁  read_file     Look inside a file
   ✏️  write_file    Create a file (auto-backup first)
   🔧 edit_file     Change part of a file (auto-backup first)
+  🗑️ delete_file   Remove a file (auto-backup first)
   🔍 search_files  Find where something is mentioned
   ▶️  run_command   Run a command (asks you first)`);
       continue;

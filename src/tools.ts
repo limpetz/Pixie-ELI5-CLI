@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -35,11 +36,11 @@ export const TOOL_SCHEMAS: ToolSchema[] = [
   {
     name: "write_file",
     description:
-      "Create a new file or fully replace an existing one. The previous version is saved as a backup automatically.",
+      "Create a new FILE or fully replace an existing file. The path must end with a filename, not a folder (e.g. 'photos/album.txt', never 'photos'). The previous version is saved as a backup automatically.",
     parameters: {
       type: "object",
       properties: {
-        path: { type: "string", description: "File path to create/replace" },
+        path: { type: "string", description: "File path to create/replace, ending in a filename" },
         content: { type: "string", description: "The complete file content" },
       },
       required: ["path", "content"],
@@ -66,6 +67,16 @@ export const TOOL_SCHEMAS: ToolSchema[] = [
       type: "object",
       properties: { query: { type: "string", description: "Text to search for" } },
       required: ["query"],
+    },
+  },
+  {
+    name: "delete_file",
+    description:
+      "Delete a file (or an empty folder) that is no longer needed. Use this to clean up mistakes, like a file that was created with the wrong name.",
+    parameters: {
+      type: "object",
+      properties: { path: { type: "string", description: "File to delete" } },
+      required: ["path"],
     },
   },
   {
@@ -102,7 +113,13 @@ function backupFile(workspace: string, abs: string): void {
 
 /* ── Implementations ────────────────────────────────────────────────── */
 
-function walk(dir: string, base: string, out: string[], depth: number): void {
+interface WalkEntry {
+  rel: string;
+  isDir: boolean;
+  size: number;
+}
+
+function walk(dir: string, base: string, out: WalkEntry[], depth: number): void {
   if (depth > 4 || out.length > 400) return;
   let entries: string[];
   try {
@@ -120,12 +137,9 @@ function walk(dir: string, base: string, out: string[], depth: number): void {
       continue;
     }
     const rel = relative(base, full).split(sep).join("/");
-    if (st.isDirectory()) {
-      out.push(`${rel}/`);
-      walk(full, base, out, depth + 1);
-    } else {
-      out.push(`${rel} (${st.size} bytes)`);
-    }
+    const isDir = st.isDirectory();
+    out.push({ rel, isDir, size: isDir ? 0 : st.size });
+    if (isDir) walk(full, base, out, depth + 1);
   }
 }
 
@@ -139,9 +153,10 @@ export function executeTool(
     switch (name) {
       case "list_files": {
         const target = safePath(workspace, args.path as string | undefined);
-        const out: string[] = [];
+        const out: WalkEntry[] = [];
         walk(target, target, out, 0);
-        return { ok: true, output: out.length ? out.join("\n") : "(empty folder)" };
+        const lines = out.map((e) => (e.isDir ? `${e.rel}/` : `${e.rel} (${e.size} bytes)`));
+        return { ok: true, output: lines.length ? lines.join("\n") : "(empty folder)" };
       }
       case "read_file": {
         const abs = safePath(workspace, args.path as string);
@@ -152,10 +167,30 @@ export function executeTool(
       }
       case "write_file": {
         const abs = safePath(workspace, args.path as string);
-        mkdirSync(join(abs, ".."), { recursive: true });
+        const parent = join(abs, "..");
+        if (existsSync(parent) && !statSync(parent).isDirectory()) {
+          return {
+            ok: false,
+            output: `Cannot write '${args.path}': '${basename(parent)}' already exists as a FILE but the path needs it to be a folder. Delete it first (delete_file) or use a different name.`,
+          };
+        }
+        if (existsSync(abs) && statSync(abs).isDirectory()) {
+          return {
+            ok: false,
+            output: `Cannot write '${args.path}': it is already a FOLDER. Write to a file inside it instead, e.g. '${args.path}/my-file.txt'.`,
+          };
+        }
+        mkdirSync(parent, { recursive: true });
         backupFile(workspace, abs);
         writeFileSync(abs, String(args.content ?? ""), "utf8");
         return { ok: true, output: `Wrote ${args.path}` };
+      }
+      case "delete_file": {
+        const abs = safePath(workspace, args.path as string);
+        if (!existsSync(abs)) return { ok: false, output: `Nothing to delete: '${args.path}' does not exist.` };
+        backupFile(workspace, abs);
+        rmSync(abs, { recursive: true });
+        return { ok: true, output: `Deleted ${args.path}` };
       }
       case "edit_file": {
         const abs = safePath(workspace, args.path as string);
@@ -173,14 +208,14 @@ export function executeTool(
       case "search_files": {
         const query = String(args.query ?? "");
         if (!query) return { ok: false, output: "Empty search query." };
-        const files: string[] = [];
-        walk(workspace, workspace, files, 0);
+        const entries: WalkEntry[] = [];
+        walk(workspace, workspace, entries, 0);
         const hits: string[] = [];
-        for (const f of files.filter((x) => !x.endsWith("/"))) {
+        for (const e of entries.filter((x) => !x.isDir)) {
           try {
-            const lines = readFileSync(join(workspace, f), "utf8").split("\n");
+            const lines = readFileSync(join(workspace, e.rel), "utf8").split("\n");
             lines.forEach((line, i) => {
-              if (line.includes(query) && hits.length < 40) hits.push(`${f}:${i + 1}: ${line.trim().slice(0, 120)}`);
+              if (line.includes(query) && hits.length < 40) hits.push(`${e.rel}:${i + 1}: ${line.trim().slice(0, 120)}`);
             });
           } catch {
             /* skip unreadable */
