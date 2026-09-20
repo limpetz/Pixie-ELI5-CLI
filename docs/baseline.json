@@ -1,0 +1,22 @@
+{
+  "type": "official_baseline",
+  "label": "pre-training",
+  "date": "2026-09-20",
+  "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+  "candidate": {
+    "model": "qwen2.5-coder:7b",
+    "runs": [57, 44, 41],
+    "medianChecks": "44/72",
+    "tasksMedian": "14/24",
+    "notes": "High run-to-run variance (41-57) driven by stochastic narration-instead-of-acting failures; the round-1 nudge catches most but not all."
+  },
+  "reference": {
+    "model": "llama3.1:8b",
+    "runs": [44, 44, 46],
+    "medianChecks": "44/72",
+    "tasksMedian": "9/24",
+    "notes": "Stable across runs; weaker at multi/hard tiers."
+  },
+  "verdict": "Pre-training, Pixie's default model and the reference tie at a median of 44/72 checks; the fine-tune must beat the median, not a single run.",
+  "method": "npm run eval, identical 24-task suite, 3 runs: the post-fix validation run plus 2 same-day reruns (raw rows appended to training/eval-results.json, which was reset before the reruns and is gitignored)."
+}

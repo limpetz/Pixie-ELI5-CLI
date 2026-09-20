@@ -37,6 +37,10 @@ function arg(name: string, fallback: string): string {
 const NUM = Math.max(1, Number(arg("num", "10")));
 const TEACHER = arg("teacher", "ollama://llama3.1:8b");
 const TASKS_FILE = arg("tasks-file", "");
+/** Task offset so later batches pick different tasks instead of repeating batch 1. */
+const OFFSET = Math.max(0, Number(arg("offset", "0")));
+/** Sampling temperature — vary it between batches so repeated tasks still yield new traces. */
+const TEMP = Math.min(1.5, Math.max(0, Number(arg("temperature", "0.4"))));
 const KEEP = process.argv.includes("--keep");
 const OUT = resolve("training/distilled.jsonl");
 const WORKSPACE = resolve("training/distill-workspace");
@@ -100,6 +104,26 @@ const SEED_TASKS: string[] = [
   "write superhero.txt inventing a superhero name and their one superpower",
   "create planet.txt with one fun fact about each of three planets, one per line",
   "make notes.txt with a tiny meeting summary: topic, decision, and next step",
+  "create groceries.txt with a 6-item shopping list for making pancakes",
+  "write weather.txt with a one-sentence forecast for a sunny day",
+  "make a folder called music and inside it create playlist.txt with four song titles",
+  "create shapes.txt listing four shapes, one per line",
+  "write intro.md with a heading Hello and one sentence introducing yourself as Pixie",
+  "create phone.txt with a fake phone number formatted like 555-0123 on its own line",
+  "make pets.txt listing three pets and one word describing each",
+  "create ladder.txt with the numbers 1 to 10, one per line",
+  "write garden.txt with three flowers that grow in spring",
+  "create code.txt with the word pixie written backwards on one line",
+  "make ladder-down.txt with the even numbers from 10 down to 2, one per line",
+  "create secret.txt where the content is exactly: the flag is green",
+  "write thank-you.txt with a two-sentence thank-you note to a teacher",
+  "make sizes.txt with three t-shirt sizes (S, M, L) and an example item for each",
+  "create bucket-list.txt with three things to do before turning 30",
+  "write study.txt with a 3-line study plan for learning cooking",
+  "create dream.txt describing a one-sentence dream from last night",
+  "make vowels-count.txt with just the number of vowels in the word encyclopedia",
+  "create story-folder/story.txt with a two-sentence story about a robot, inside a new folder called story-folder",
+  "write menu.txt with three dinner options and prices, one per line",
 ];
 
 function loadTasks(): string[] {
@@ -125,7 +149,7 @@ async function main(): Promise<void> {
     fallback: null,
     workspace: WORKSPACE,
     beginnerMode: true,
-    temperature: 0.4,
+    temperature: TEMP,
     maxToolRounds: 8,
   };
 
@@ -142,13 +166,13 @@ async function main(): Promise<void> {
 
   const tasks = loadTasks();
   const picked: string[] = [];
-  for (let i = 0; picked.length < NUM && i < Math.max(NUM, tasks.length) * 3; i++) {
-    picked.push(tasks[i % tasks.length]);
+  for (let i = 0; i < NUM; i++) {
+    picked.push(tasks[(i + OFFSET) % tasks.length]);
   }
 
-  console.log(`Teacher   : ${teacher.kind}/${teacher.model}`);
-  console.log(`Tasks     : ${picked.length}`);
-  console.log(`Output    : ${OUT}\n`);
+  console.log(`Teacher    : ${teacher.kind}/${teacher.model}`);
+  console.log(`Tasks      : ${picked.length} (offset ${OFFSET}, temperature ${TEMP})`);
+  console.log(`Output     : ${OUT}\n`);
 
   let written = 0;
   let skipped = 0;
