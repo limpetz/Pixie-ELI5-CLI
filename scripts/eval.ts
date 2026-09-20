@@ -60,7 +60,7 @@ interface Task {
   followUps?: string[];
 }
 
-const BUILT_IN: Task[] = [
+export const BUILT_IN: Task[] = [
   /* ── core: single-step basics ── */
   {
     tier: "core",
@@ -361,7 +361,7 @@ async function runTask(provider: ProviderConfig, task: Task, ws: string): Promis
   return { pass, rounds, seconds: (Date.now() - t0) / 1000, failed };
 }
 
-async function evalModel(
+export async function evalModel(
   spec: string,
   tasks: Task[],
   root: string,

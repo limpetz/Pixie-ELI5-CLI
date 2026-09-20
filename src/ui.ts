@@ -35,7 +35,7 @@ function welcome(cfg: PixieConfig): void {
   console.log(`  Mode       ${cfg.beginnerMode ? "Beginner-friendly" : "Pro"}`);
   console.log(C.dim(`
   Talk to me like a person: "make a website about my cat"
-  Commands: /help  /new  /resume  /workspace  /model  /mode  /auto  /tools  /stats  /exit
+  Commands: /help  /new  /resume  /workspace  /model  /mode  /auto  /tools  /eval  /stats  /exit
 `));
 }
 
@@ -50,6 +50,7 @@ function help(): void {
   /mode          Toggle beginner ↔ pro mode
   /auto          Toggle auto-run of commands (default: ask first)
   /tools         List what Pixie can do in your workspace
+  /eval          Quick skill check of the current model (10 tasks)
   /stats         Show session log size (your future training data)
   /exit          Leave
 
@@ -241,6 +242,26 @@ export async function runRepl(): Promise<void> {
   🗑️ delete_file   Remove a file (auto-backup first)
   🔍 search_files  Find where something is mentioned
   ▶️  run_command   Run a command (asks you first)`);
+      continue;
+    }
+    if (input === "/eval") {
+      console.log(C.dim("  Running a quick skill check of the current model (10 tasks, 1-2 min)…"));
+      try {
+        const { BUILT_IN, evalModel } = await import("../scripts/eval.js");
+        const spec =
+          cfg.provider.kind === "ollama"
+            ? `ollama://${cfg.provider.model}`
+            : `${cfg.provider.baseUrl}|${cfg.provider.apiKey ?? ""}|${cfg.provider.model}`;
+        const r = await evalModel(spec, BUILT_IN.slice(0, 10), resolve("training/eval-workspace"));
+        console.log(
+          r.tasksPassed >= 7
+            ? C.green(`  ✔ ${cfg.provider.model}: ${r.checksPassed}/${r.checksTotal} checks, ${r.tasksPassed}/10 tasks — looking sharp!`)
+            : C.yellow(`  ◦ ${cfg.provider.model}: ${r.checksPassed}/${r.checksTotal} checks, ${r.tasksPassed}/10 tasks — room to grow (fine-tuning target: 44/72 median).`),
+        );
+        console.log(C.dim(`  Details in training/eval-workspace · (${r.seconds.toFixed(0)}s)`));
+      } catch (err) {
+        console.log(C.red(`  Eval failed: ${err instanceof Error ? err.message : String(err)}`));
+      }
       continue;
     }
     if (input === "/stats") {
