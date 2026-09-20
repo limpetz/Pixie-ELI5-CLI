@@ -133,7 +133,12 @@ export function extractPairs(file: string, source = ""): Pair[] {
           function: { name: tc.name as string, arguments: (tc.args ?? {}) as Record<string, unknown> },
         }));
       if (!toolCalls.length) continue;
-      turns.push({ role: "assistant", content: (e.content ?? "").trim(), tool_calls: toolCalls });
+      // Tool-faithful pairs: an assistant turn that calls a tool must contain
+      // ONLY the call (content ""). Any narration here ("Sure! Let's create…",
+      // "What I did: …") teaches the model to describe actions in prose before
+      // the <tool_call> tag — the exact narration-instead-of-acting failure
+      // mode pixie-7b v1 learned. Prose belongs in the post-tool summary turn.
+      turns.push({ role: "assistant", content: "", tool_calls: toolCalls });
     } else if (e.type === "tool_result") {
       if (e.ok === false) sawFailedTool = true;
       turns.push({ role: "tool", name: e.name ?? "tool", content: String(e.output ?? "").trim() });

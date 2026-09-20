@@ -161,6 +161,25 @@ console.log("dataset extraction:");
     "utf8",
   );
   check("drops narration-only exchanges", extractPairs(narrFile).length, 0);
+  // Narration attached to a tool-call turn must be stripped — prose before a
+  // <tool_call> tag is the v1 narration-instead-of-acting failure mode.
+  const narrFile2 = join(dir, "narrated-toolcall.jsonl");
+  writeFileSync(
+    narrFile2,
+    [
+      JSON.stringify({ type: "user_message", content: "make a poem file" }),
+      JSON.stringify({ type: "assistant_tool_calls", content: "Sure! I'll write that poem now.", toolCalls: [{ name: "write_file", args: { path: "poem.txt", content: "roses" } }] }),
+      JSON.stringify({ type: "tool_result", name: "write_file", ok: true, output: "Wrote poem.txt" }),
+      JSON.stringify({ type: "assistant_message", content: "Done! I created poem.txt with a lovely poem for you today." }),
+    ].join("\n"),
+    "utf8",
+  );
+  const narrated = extractPairs(narrFile2);
+  check(
+    "narration stripped from tool-call turns",
+    narrated[0]?.messages[2].content === "" && (narrated[0]?.messages[2].tool_calls?.length ?? 0) === 1,
+    true,
+  );
   rmSync(dir, { recursive: true, force: true });
 }
 

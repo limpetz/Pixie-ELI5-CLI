@@ -1,22 +1,47 @@
-{
-  "type": "official_baseline",
-  "label": "pre-training",
-  "date": "2026-09-20",
-  "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
-  "candidate": {
-    "model": "qwen2.5-coder:7b",
-    "runs": [57, 44, 41],
-    "medianChecks": "44/72",
-    "tasksMedian": "14/24",
-    "notes": "High run-to-run variance (41-57) driven by stochastic narration-instead-of-acting failures; the round-1 nudge catches most but not all."
+[
+  {
+    "type": "official_baseline",
+    "label": "pre-training",
+    "date": "2026-09-20",
+    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "candidate": {
+      "model": "qwen2.5-coder:7b",
+      "runs": [57, 44, 41],
+      "medianChecks": "44/72",
+      "tasksMedian": "14/24",
+      "notes": "High run-to-run variance (41-57) driven by stochastic narration-instead-of-acting failures; the round-1 nudge catches most but not all."
+    },
+    "reference": {
+      "model": "llama3.1:8b",
+      "runs": [44, 44, 46],
+      "medianChecks": "44/72",
+      "tasksMedian": "9/24",
+      "notes": "Stable across runs; weaker at multi/hard tiers."
+    },
+    "verdict": "Pre-training, Pixie's default model and the reference tie at a median of 44/72 checks; the fine-tune must beat the median, not a single run.",
+    "method": "npm run eval, identical 24-task suite, 3 runs: the post-fix validation run plus 2 same-day reruns (raw rows appended to training/eval-results.json, which was reset before the reruns and is gitignored)."
   },
-  "reference": {
-    "model": "llama3.1:8b",
-    "runs": [44, 44, 46],
-    "medianChecks": "44/72",
-    "tasksMedian": "9/24",
-    "notes": "Stable across runs; weaker at multi/hard tiers."
-  },
-  "verdict": "Pre-training, Pixie's default model and the reference tie at a median of 44/72 checks; the fine-tune must beat the median, not a single run.",
-  "method": "npm run eval, identical 24-task suite, 3 runs: the post-fix validation run plus 2 same-day reruns (raw rows appended to training/eval-results.json, which was reset before the reruns and is gitignored)."
-}
+  {
+    "type": "official_baseline",
+    "label": "post-training (Pixie-7B round 1)",
+    "date": "2026-09-20",
+    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "candidate": {
+      "model": "pixie-7b (QLoRA on qwen2.5-coder-7b-instruct, 32 pairs, 6 epochs, final loss 1.189)",
+      "runs": [50, 56, 53],
+      "medianChecks": "53/72",
+      "tasksMedian": "14/24",
+      "byTierMedian": { "core": "6/7", "multi": "4/9", "hard": "4/8" },
+      "notes": "Acts in ~1.4 tool rounds per task (2.3x faster than base) and never narrates-instead-of-acting. Wins all 3 head-to-head runs against the base model."
+    },
+    "reference": {
+      "model": "qwen2.5-coder:7b (same-day control runs)",
+      "runs": [32, 30, 32],
+      "medianChecks": "32/72",
+      "tasksMedian": "9/24",
+      "notes": "Base variance remains high across the day (its pre-training median was 44/72 with a best single run of 57)."
+    },
+    "verdict": "Pixie-7B beats the pre-training median (53/72 vs 44/72), the reference model (44/72), and the base model in every same-run comparison (+20 checks on average). Fine-tune shipped into the CLI via /model → pixie-7b.",
+    "method": "npm run eval, identical 24-task suite, 3 same-day runs per model after fixing a stale-GGUF incident: the first Ollama import had been built from the pre-fix (narration-trained) adapter; re-exporting from the fixed adapter (training/export-gguf.py) was required before scoring. Raw rows appended to training/eval-results.json (gitignored)."
+  }
+]
