@@ -18,7 +18,8 @@
     "prepare-training": "tsx scripts/prepare-training.ts",
     "distill": "tsx scripts/distill.ts",
     "eval": "tsx scripts/eval.ts",
-    "selftest": "tsx scripts/selftest.ts"
+    "selftest": "tsx scripts/selftest.ts",
+    "verify-smoke": "tsx scripts/verify-smoke.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

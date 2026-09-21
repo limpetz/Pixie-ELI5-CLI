@@ -74,6 +74,7 @@ npm run distill            # teacher model generates extra grounded traces
 npm run prepare-training   # generates lora_config.py + TRAINING.md
 npm run eval               # after training: Pixie-7B vs base, head-to-head
 npm run selftest           # quick regression tests
+npm run verify-smoke       # offline check of the distill goal verifiers
 ```
 
 Then follow **`training/TRAINING.md`**: QLoRA fine-tune of Qwen2.5-Coder-7B on your own GPU (or a free Colab T4) → export to GGUF → `ollama create pixie-7b` → pick it with `/model`. Your own model, trained on your own conversations.
@@ -87,6 +88,14 @@ npm run distill -- --num 10 --teacher ollama://llama3.1:8b      # free, local
 npm run distill -- --num 50 --teacher openai://gpt-4o-mini      # stronger, needs OPENAI_API_KEY
 npm run distill -- --tasks-file training/my-tasks.txt --teacher https://api.groq.com/openai/v1|KEY|model
 ```
+
+Traces from task pools that use the `id | task text` format (see
+`training/chain-tasks.txt`) are **goal-verified**: after each attempt Pixie
+reseeds the scratch workspace and only keeps traces whose files actually show
+the task was achieved (wrong totals, lazy parallel calls, or "exactly three
+files" with a bonus fourth are dropped). Add a task? Also add its verifier to
+`VERIFY` in `scripts/distill.ts` and a fixture/trap pair to
+`scripts/verify-smoke.ts`, then `npm run verify-smoke`.
 
 Mix both files when training (`DATASET_FILE` in `training/lora_config.py`).
 

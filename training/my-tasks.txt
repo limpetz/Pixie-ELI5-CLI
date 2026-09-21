@@ -1,0 +1,43 @@
+# Round-2 distillation pool: edit_file fluency + multi-file structure.
+# One task per line. Tasks are beginner-flavored and self-contained; the
+# distill workspace persists across tasks, so edit tasks may target files
+# from earlier tasks (the teacher will list/read first — that's the point).
+# --- create, then edit in the same conversation ---
+create a file named menu.txt with three lunch options and prices, then change the most expensive option to a cheaper price
+make a file named wishlist.txt listing four toys, then replace the last toy with a different one
+create story.txt with a three-line story about a cat, then change the ending line so the cat finds a home
+write recipe.txt with a 3-step pancake recipe that says 1 cup of milk, then change it to 2 cups of milk
+create a file named plan.txt with three weekend activities, then swap the second activity for swimming
+make birthday.md with a heading Party Plan and two lines about Saturday, then change the party day to Sunday
+create config.txt with theme=light on one line, then switch the theme to dark
+write a file named poem.txt with a two-line poem about rain, then change rain to snow everywhere in the poem
+create scores.txt listing three game scores with numbers, then raise the lowest score by 5 points
+make a file named party.txt with a guest list of four names, then add a fifth name to the list
+create greeting.txt that says Hello world, then change it to say Howdy partner
+write journal.txt with one sentence about today, then add a second sentence about tomorrow
+create packing.txt listing five things for a beach trip, then remove sunscreen from the list and add a hat instead
+make shopping.txt with three items and prices, then change the price of bread to 2.50
+create a file named title.txt containing My Favorite Things, then change My to Your
+write intro.txt saying I am a robot, then change robot to helper in the file
+# --- multi-file structure ---
+create a folder called trip with two files inside: packing.txt and itinerary.txt, each with three lines
+make a folder named school with homework.txt and schedule.txt inside, each with two lines
+create a website folder with index.html saying Welcome and about.html saying All about us
+make a folder called recipes with breakfast.txt and dinner.txt, one meal idea in each
+create three files in a folder called team: dev.txt, design.txt, and manager.txt, with one role description in each
+make a folder called story with chapter1.txt and chapter2.txt, two sentences in each chapter
+create a folder called shop with items.txt listing three products and prices.txt listing their prices
+make a folder called journal with monday.txt and tuesday.txt, a one-sentence entry in each
+create a folder named garden with flowers.txt and vegetables.txt, listing three of each
+make a folder called music with rock.txt and jazz.txt, two song titles in each
+create a folder called games with board.txt and video.txt, naming one favorite in each
+make a folder called travel with france.txt and japan.txt, one fun fact about each country
+create a folder named pets with dogs.txt and cats.txt, one breed in each file
+make a folder called party with invites.txt listing two friends and snacks.txt listing three snacks
+# --- find, read, then edit or extend ---
+look at the files in the workspace and fix any spelling of the word teh you find into the
+create a file named notes.txt with two lines about birds, then create birds-facts.txt with one more bird fact
+make a file named summary.txt that lists the names of every file currently in the workspace, one per line
+create a folder called archive and move nothing into it, just create it with an empty readme.txt that says nothing here yet
+make words.txt with five animal names, then create a second file called count.txt with just the number five in it
+create wishlist.txt with three book titles, then create read.txt with just the first book title from wishlist.txt
