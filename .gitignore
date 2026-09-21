@@ -26,4 +26,3 @@ training/*
 !training/chain-retry.txt
 !training/multi5-retry.txt
 !training/requirements-lock.txt
-!training/*-lora-*
