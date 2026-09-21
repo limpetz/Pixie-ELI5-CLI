@@ -12,11 +12,11 @@ LORA_DROPOUT = 0.05
 TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
 # --- Training schedule ---
-EPOCHS = 3            # r1 exposure-equivalent on the 82-pair union (r1: 32x6 ≈ 82x~2.5; extra epoch for the chain traces)
+EPOCHS = 6            # round-6 hypothesis: r1's stack exactly (r2-r5 all ran 2-4 epochs)
 BATCH_SIZE = 1         # per step; batch 2 thrashed system RAM with tool-turn sequences
 GRAD_ACCUM = 16        # effective batch = BATCH_SIZE * GRAD_ACCUM (kept at 16)
 LEARNING_RATE = 2.5e-4
-MAX_SEQ_LEN = 1536     # round-1 recipe (round 2-4 used 1792 for longer chains)
+MAX_SEQ_LEN = 1536     # r1's value; longest r5 pair renders to ~1050 tokens, nothing truncates
 
 # --- Hardware ---
 LOAD_IN_4BIT = True    # QLoRA: fits a 6-8 GB GPU
