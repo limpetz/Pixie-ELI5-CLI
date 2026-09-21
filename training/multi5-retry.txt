@@ -1,0 +1,6 @@
+# Round-5 retry pool: the multi5 tasks that failed verification in
+# distill-multi5a.log (qwen2.5-coder:7b, temp 0.7) — reworded variants.
+# Same ids as multi5-tasks.txt (verifiers + scaffolds in scripts/distill.ts).
+lastline  | open poem-a.txt, look at its very last line, and create ending.txt containing exactly that last line
+findfix   | read notes-a.txt carefully — one word in it is spelled wrong. Track down the misspelled word and correct it in the file
+jsonedit  | config-a.json holds two settings. Switch the theme setting from light to dark using edit_file, and leave the volume setting exactly as it is

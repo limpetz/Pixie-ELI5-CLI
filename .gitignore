@@ -24,3 +24,4 @@ training/*
 !training/seed-workspace.py
 !training/*-tasks.txt
 !training/chain-retry.txt
+!training/multi5-retry.txt
