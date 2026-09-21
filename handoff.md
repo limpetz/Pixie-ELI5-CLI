@@ -1,6 +1,6 @@
 # Pixie — Session Handoff
 
-*Written 2026-09-22 after the round-6 refutation closed the investigation. Read this first when resuming.*
+*Written 2026-09-22 after round 7 (continuation) was also refuted — every recipe hypothesis is now closed. Read this first when resuming.*
 
 ## What Pixie is
 
@@ -33,14 +33,15 @@ Run that first thing in any new session if you doubt the local model.
 | round 4 | 41 curated hard/multi | 4ep / 1792 | 43/45/46 | 45 | 7/3/3 |
 | round 5 | 82 union (r1+curated+multi5) | 3ep / 1792 | 46/45/46 | 46 | 5/3/3 |
 | round 6 | same 82 union | 6ep / 1536 | 44/34/36 | **36 (worst)** | 4/3/2 |
+| round 7 | 53 chain pairs, **continued FROM the r1 adapter** | 2ep @ LR 2.5e-5 / 1536 | 45/44/46 | 45 | 6/2/4 |
 
 Eval = 24-task suite (7 core / 9 multi / 8 hard), 72 checks, 3 runs per model,
 head-to-head A/B (`npm run eval`). Raw rows append to
 `training/eval-results.json` (gitignored) — **baseline.json is the durable record.**
 
-### The closed investigation (rounds 2–6)
+### The closed investigation (rounds 2–7)
 
-Three hypotheses were tested and **all refuted**:
+Four hypotheses were tested and **all refuted**:
 
 1. **Data shape** — r4 (curated 41 hard/multi) fixed core/hard but multi
    stayed 3/9; r5 added verified traces for *every* chronically-failed multi
@@ -50,19 +51,25 @@ Three hypotheses were tested and **all refuted**:
    truncation-checked) on the r5 data: 36/72, worst round. Overfit into
    reflexes (loss 0.123), reproducing round 2's collapse at the other seq-len.
 3. **Sequence length** — eliminated by the same r6 result.
+4. **Continuation from r1's weights** — r7 recovered the r1-retrain adapter
+   (retrained r1's recipe, loss 1.197) and fine-tuned further on the 53
+   chain pairs at LR 2.5e-5 / 2 epochs: 45/72 with multi 2/9. Gentleness
+   didn't matter — even touching r1's weights with chain data erodes multi.
 
-**Conclusion: the only variable that tracks score is adapter provenance.**
-Both round-1 runs score 52–54; five from-scratch retrains on merged/expanded
-data land 36–46 regardless of data mix or recipe. Remaining suspects (untested):
-(a) unsloth/env version drift vs the original r1 session, (b) r1's 32 pairs
-being the only data whose message rendering predates later build-dataset
-changes, (c) subtle interaction between chain traces and simple traces that
-neither slicing nor union isolates.
+**Conclusion: the score is a property of r1's original 32 pairs.** Only the
+two runs trained on them reach 52–54 — every derived dataset scores 36–46
+from scratch (r2–r6) AND via gentle continuation from r1's own weights (r7).
+The multi tier (r1: 6/9) is what every derivative breaks. Remaining suspects:
+(a) content mix of r1's pairs (task variety, summary style, single-step
+share), (b) rendering/provenance differences vs today's build path,
+(c) unsloth/env drift vs the original r1 session (env now pinned:
+`training/requirements-lock.txt`).
 
-**Policy going forward: stop blind from-scratch iteration.** Next rounds must
-*continue training from* an existing good adapter (see options below).
+**Policy going forward: no more training until data forensics (option B
+below) identifies what r1's pairs have that the derived sets lack.** When
+training resumes, `train.py`'s `BASE_ADAPTER` continuation path is available.
 
-## What this project changed, in order (commits through `8931d61`)
+## What this project changed, in order (recent commits: `dd8887c` continuation trainer + env lock; then the round-7 result commit)
 
 1. **Distillation pipeline** (`scripts/distill.ts`): verifier registry
    (`id | task text` format), 2 attempts with pristine workspace reseed
@@ -89,7 +96,16 @@ neither slicing nor union isolates.
    with the node one-liners in the sections below if lost.
 6. **Round history**: r3 (122 pairs, 40/72) → r4 (curated 41, 45/72, core
    7/7) → r1-retrain + multi5 pool → r5 (82 union, 46/72) → r6 (r1 stack on
-   union, 36/72). Details in `docs/baseline.json`.
+   union, 36/72) → r7 (continuation from the recovered r1 adapter on 53
+   chain pairs, LR 2.5e-5: 45/72, multi 2/9). Details in `docs/baseline.json`.
+7. **Round-7 infrastructure (2026-09-22)**: env pinned
+   (`training/requirements-lock.txt`: unsloth 2026.9.7, transformers 5.5.0,
+   trl 0.24.0); `train.py` gained the `BASE_ADAPTER` continuation path
+   (loads a saved adapter via unsloth, re-enables lora_* params, NO second
+   get_peft_model — that would stack a fresh random LoRA — with frozen/
+   fresh-init guards). The r1-retrain adapter was recovered and saved
+   durably to `training/pixie-7b-lora-r1redo` (loss 1.197 ≈ 1.198); r6/r7
+   adapters also kept (`-r6`, `-r7`).
 
 ### The GGUF-loss incident (do not repeat)
 
@@ -98,19 +114,20 @@ Recovery was retraining from r1's exact recipe (`training/r1.jsonl`, 6 epochs,
 max_seq 1536, loss 1.198) — which then validated at 52/72, matching the
 original. **Policy: after every `ollama create pixie-7b`, immediately run
 `ollama cp pixie-7b pixie-7b-r<N>` BEFORE scoring.** Current snapshots:
-`pixie-7b-r1` (shipped), `-r4`, `-r5`, `-r6`. The `-r4` copy in Ollama also
+`pixie-7b-r1` (shipped), `-r4`, `-r5`, `-r6`, `-r7`. The `-r4` copy in Ollama also
 backs the r4 adapter.
 
 ## Environment facts
 
 - **Ollama running** (`localhost:11434`): `pixie-7b` = `pixie-7b-r1` (shipped,
   verified), `qwen2.5-coder:7b` (distill teacher), `llama3.1:8b`, `qwen2.5-coder:1.5b-base`, `nomic-embed-text`.
-- **Adapter dirs**: `training/pixie-7b-lora/` = round-6 adapter (latest run
-  always overwrites this); `training/pixie-7b-lora-r4/` = round-4 copy.
-  The **r1-retrain adapter no longer exists on disk** — only its GGUF
-  (`pixie-7b-r1`). To get it back: copy the current `pixie-7b-lora/` aside,
-  rerun r1's recipe (`r1.jsonl`, 6ep, 1536 — ~8 min), and save the result
-  somewhere durable before anything else touches `pixie-7b-lora/`.
+- **Adapter dirs**: `training/pixie-7b-lora/` = round-7 adapter (latest run
+  always overwrites this). Durable copies: `pixie-7b-lora-r1redo` (r1 recipe
+  retrained, loss 1.197), `pixie-7b-lora-r4`, `pixie-7b-lora-r6`,
+  `pixie-7b-lora-r7`. They are whitelisted in .gitignore
+  (`!training/*-lora-*`) but deliberately NOT committed (~160 MB each) —
+  they exist only on this machine; the Ollama GGUF snapshots are the backup
+  of record.
 - Training venv: `training/.venv/Scripts/python.exe`; run from `training/`
   (`train.py` reads `lora_config.py`: DATASET, EPOCHS, MAX_SEQ_LEN, SEED=42).
   RTX 4060 8 GB; ~8 min/step on the 82-pair union, ~2 min/step on 32 pairs.
@@ -125,29 +142,27 @@ backs the r4 adapter.
 
 ## Next steps — three options, in recommended order
 
-**A. Round 7: continuation training (the documented policy).**
-1. Recover the r1-retrain adapter (see Environment facts — ~8 min).
-2. Teach `training/train.py` to load the base as the r1 adapter + merged
-   weights and continue (unsloth `model = FastLanguageModel.get_peft_model`
-   on a loaded PeftModel, or merge-then-LoRA).
-3. Train on `multi5` + `curated` traces at LOW LR (e.g. 2e-5) / 1–2 epochs —
-   the goal is *adding* chain competence without eroding r1's simple-task
-   behavior. Watch that loss starts near r1's ~1.2 scale, not at 0.5+.
-4. Export → import → `ollama cp pixie-7b pixie-7b-r7` → 3-run eval.
-5. Ship only if median > 54 and hard ≥ 4; otherwise restore:
-   `ollama cp pixie-7b-r1 pixie-7b`.
+**A. Round-7 continuation — EXECUTED (2026-09-22), refuted.** See item 11:
+45/72 with multi collapsed to 2/9, even at LR 2.5e-5 resuming r1's own
+weights. The `BASE_ADAPTER` path stays in `train.py` (with its guards) for
+future use, but no recipe direction survives: data shape, stack, union, and
+continuation are all refuted.
 
-**B. If continuation fails: r1-only replication sweep.** Rebuild r1's data
-through the *current* build-dataset path (rendering check: diff the chat
-template output of an r1 pair vs a distilled pair) and train r1's exact
-recipe — if that scores ~36–46, the regression is in the *data rendering /
-env drift*, not the data selection. This cleanly separates suspect (b).
+**B. Data forensics on r1's 32 pairs (next; no training needed).** The only
+two 52-54 models were trained on exactly `training/r1.jsonl`. Diff it
+against every derived dataset: (1) render r1 pairs and distilled pairs
+through the current chat template (same code path as train.py) and compare
+system prompts, tool-schema blocks, and message ordering; (2) compare
+content mix — task variety, final-summary style, share of single-step
+create/edit tasks. Whatever r1 has that the others lack is the missing
+ingredient; re-derive new traces to match it instead of adding more chains.
 
-**C. Env archaeology** (only if A and B fail): pin/inspect unsloth +
-transformers versions vs whatever was installed when r1 was first trained
-(`pip freeze` history is not available — the venv has been reused; consider
-locking versions now: `pip freeze > training/requirements-lock.txt`).
+**C. If forensics implicates rendering/provenance:** rebuild r1's data
+through the current build path and train its exact recipe (~8 min) — if the
+rebuild scores ~36-46, the regression lives in how data is built today; if
+~52, the original pair files themselves carry the score.
 
 Regardless of path: any new eval result goes into `docs/baseline.json` +
 this file, and the `pixie-7b` tag must end the session pointing at the best
-known model (currently `pixie-7b-r1`).
+known model (`pixie-7b-r1`). The env is pinned:
+`training/requirements-lock.txt` (committed).

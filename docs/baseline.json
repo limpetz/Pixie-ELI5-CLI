@@ -3,17 +3,33 @@
     "type": "official_baseline",
     "label": "pre-training",
     "date": "2026-09-20",
-    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "suite": {
+      "tasks": 24,
+      "checks": 72,
+      "tiers": {
+        "core": 7,
+        "multi": 9,
+        "hard": 8
+      }
+    },
     "candidate": {
       "model": "qwen2.5-coder:7b",
-      "runs": [57, 44, 41],
+      "runs": [
+        57,
+        44,
+        41
+      ],
       "medianChecks": "44/72",
       "tasksMedian": "14/24",
       "notes": "High run-to-run variance (41-57) driven by stochastic narration-instead-of-acting failures; the round-1 nudge catches most but not all."
     },
     "reference": {
       "model": "llama3.1:8b",
-      "runs": [44, 44, 46],
+      "runs": [
+        44,
+        44,
+        46
+      ],
       "medianChecks": "44/72",
       "tasksMedian": "9/24",
       "notes": "Stable across runs; weaker at multi/hard tiers."
@@ -25,18 +41,38 @@
     "type": "official_baseline",
     "label": "post-training (Pixie-7B round 1)",
     "date": "2026-09-20",
-    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "suite": {
+      "tasks": 24,
+      "checks": 72,
+      "tiers": {
+        "core": 7,
+        "multi": 9,
+        "hard": 8
+      }
+    },
     "candidate": {
       "model": "pixie-7b (QLoRA on qwen2.5-coder-7b-instruct, 32 pairs, 6 epochs, final loss 1.189)",
-      "runs": [50, 56, 53],
+      "runs": [
+        50,
+        56,
+        53
+      ],
       "medianChecks": "53/72",
       "tasksMedian": "14/24",
-      "byTierMedian": { "core": "6/7", "multi": "4/9", "hard": "4/8" },
+      "byTierMedian": {
+        "core": "6/7",
+        "multi": "4/9",
+        "hard": "4/8"
+      },
       "notes": "Acts in ~1.4 tool rounds per task (2.3x faster than base) and never narrates-instead-of-acting. Wins all 3 head-to-head runs against the base model."
     },
     "reference": {
       "model": "qwen2.5-coder:7b (same-day control runs)",
-      "runs": [32, 30, 32],
+      "runs": [
+        32,
+        30,
+        32
+      ],
       "medianChecks": "32/72",
       "tasksMedian": "9/24",
       "notes": "Base variance remains high across the day (its pre-training median was 44/72 with a best single run of 57)."
@@ -48,21 +84,45 @@
     "type": "official_baseline",
     "label": "post-training (Pixie-7B round 2) — REGRESSION vs round 1",
     "date": "2026-09-21",
-    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "suite": {
+      "tasks": 24,
+      "checks": 72,
+      "tiers": {
+        "core": 7,
+        "multi": 9,
+        "hard": 8
+      }
+    },
     "candidate": {
       "model": "pixie-7b (QLoRA round 2: 105 pairs, 4 epochs, final loss 0.56, LR 2.5e-4, max_seq 1792)",
-      "runs": [48, 40, 43],
+      "runs": [
+        48,
+        40,
+        43
+      ],
       "medianChecks": "43/72",
       "tasksMedian": "11/24",
-      "byTierMedian": { "core": "5/7", "multi": "4/9", "hard": "1/8" },
+      "byTierMedian": {
+        "core": "5/7",
+        "multi": "4/9",
+        "hard": "1/8"
+      },
       "notes": "Still beats base in all 3 head-to-heads and still never narrates-instead-of-acting (avg 1.4 rounds/task). But the hard tier collapsed to 1/8 median (was 4/8): in run 3 it one-shots every hard task — single tool round, wrong or missing output — suggesting the larger dataset (longer command→save and two-edit chains, truncated system+tools prefix pushing attention toward training-time repetitions) made it more reflexive, not more capable."
     },
     "reference": {
       "model": "qwen2.5-coder:7b (same-day control runs)",
-      "runs": [36, 39, 25],
+      "runs": [
+        36,
+        39,
+        25
+      ],
       "medianChecks": "36/72",
       "tasksMedian": "11/24",
-      "byTierMedian": { "core": "5/7", "multi": "3/9", "hard": "2/8" },
+      "byTierMedian": {
+        "core": "5/7",
+        "multi": "3/9",
+        "hard": "2/8"
+      },
       "notes": "Base had a particularly bad run 3 (25/72) and a good run 2 (39/72); same high variance as before."
     },
     "verdict": "Round 2 beats base head-to-head (3/3) but REGRESSED against round 1 (43/72 vs 53/72 median), driven entirely by the hard tier (1/8 vs 4/8). Round-1 adapter (32 pairs, 6 epochs) remains the shipped model until a round-3 recipe (fewer epochs on the merged dataset, or round-1 data + a small hard-tier slice) proves otherwise.",
@@ -72,18 +132,38 @@
     "type": "official_baseline",
     "label": "post-training (Pixie-7B round 3) — REGRESSION vs round 1",
     "date": "2026-09-21",
-    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "suite": {
+      "tasks": 24,
+      "checks": 72,
+      "tiers": {
+        "core": 7,
+        "multi": 9,
+        "hard": 8
+      }
+    },
     "candidate": {
       "model": "pixie-7b (QLoRA round 3: 122 pairs, 2 epochs, final loss 0.933, LR 2.5e-4, max_seq 1792)",
-      "runs": [42, 40, 40],
+      "runs": [
+        42,
+        40,
+        40
+      ],
       "medianChecks": "40/72",
       "tasksMedian": "9/24",
-      "byTierMedian": { "core": "5/7", "multi": "2/9", "hard": "3/8" },
+      "byTierMedian": {
+        "core": "5/7",
+        "multi": "2/9",
+        "hard": "3/8"
+      },
       "notes": "Training was conservative and loss avoided round-2's suspicious 0.56, but the merged dataset still weakened multi-file behavior. The model continues to act on many hard tasks, but does not beat round 1 overall."
     },
     "reference": {
       "model": "qwen2.5-coder:7b (same-run controls)",
-      "runs": [21, 34, 23],
+      "runs": [
+        21,
+        34,
+        23
+      ],
       "medianChecks": "23/72",
       "tasksMedian": "5/24",
       "notes": "Base remains highly variable; round 3 beats it on checks in all three runs, but this is not sufficient for shipping."
@@ -95,18 +175,38 @@
     "type": "official_baseline",
     "label": "post-training (Pixie-7B round 4, curated slice) — best since round 1, still short",
     "date": "2026-09-21",
-    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "suite": {
+      "tasks": 24,
+      "checks": 72,
+      "tiers": {
+        "core": 7,
+        "multi": 9,
+        "hard": 8
+      }
+    },
     "candidate": {
       "model": "pixie-7b (QLoRA round 4: 41 curated pairs — 38 verified hard/multi traces + 3 real sessions, 4 epochs, final loss 1.262)",
-      "runs": [43, 45, 46],
+      "runs": [
+        43,
+        45,
+        46
+      ],
       "medianChecks": "45/72",
       "tasksMedian": "13/24",
-      "byTierMedian": { "core": "7/7", "multi": "3/9", "hard": "3/8" },
+      "byTierMedian": {
+        "core": "7/7",
+        "multi": "3/9",
+        "hard": "3/8"
+      },
       "notes": "Wins all 3 head-to-heads. Core is now perfect (7/7 twice, 6/7 once — better than round 1's 6/7 median). Hard recovered to round-1-ish (3/8, with a 4/8 run). Multi remains the bottleneck (2-3/9 vs round 1's 4/9) — the curated slice traded away the simple create/edit variety that underpins multi-tier tasks."
     },
     "reference": {
       "model": "qwen2.5-coder:7b (same-run controls)",
-      "runs": [30, 27, 34],
+      "runs": [
+        30,
+        27,
+        34
+      ],
       "medianChecks": "30/72",
       "tasksMedian": "9/24",
       "notes": "Base stayed in its usual 25-39 band."
@@ -118,18 +218,38 @@
     "type": "official_baseline",
     "label": "post-training (Pixie-7B round 5, r1+curated+multi5 union) — multi still capped, not shipped",
     "date": "2026-09-21",
-    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "suite": {
+      "tasks": 24,
+      "checks": 72,
+      "tiers": {
+        "core": 7,
+        "multi": 9,
+        "hard": 8
+      }
+    },
     "candidate": {
       "model": "pixie-7b (QLoRA round 5: 82 pairs — r1 recipe 32 + r4 curated 38 + verified multi5 12 — 3 epochs, final loss 0.839)",
-      "runs": [46, 45, 46],
+      "runs": [
+        46,
+        45,
+        46
+      ],
       "medianChecks": "46/72",
       "tasksMedian": "11/24",
-      "byTierMedian": { "core": "5/7", "multi": "3/9", "hard": "3/8" },
+      "byTierMedian": {
+        "core": "5/7",
+        "multi": "3/9",
+        "hard": "3/8"
+      },
       "notes": "Wins all 3 head-to-heads. Surprisingly, core DROPPED to 5/7 (r4 had 7/7) despite this union containing r1's simple creates. Multi only inched up (3-4/9 vs r4's 2-3/9) even though every chronically-failed multi shape now has verified training coverage. The added data did not convert into multi gains — and slight core erosion suggests the union still pulls the model away from round-1 behavior rather than adding to it."
     },
     "reference": {
       "model": "qwen2.5-coder:7b (same-run controls)",
-      "runs": [30, 31, 33],
+      "runs": [
+        30,
+        31,
+        33
+      ],
       "medianChecks": "31/72",
       "tasksMedian": "9/24",
       "notes": "Base in its usual band; round 5 beats it 3/3."
@@ -141,23 +261,91 @@
     "type": "official_baseline",
     "label": "post-training (Pixie-7B round 6, r5 data on exact r1 stack) — training-stack hypothesis REFUTED",
     "date": "2026-09-21",
-    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "suite": {
+      "tasks": 24,
+      "checks": 72,
+      "tiers": {
+        "core": 7,
+        "multi": 9,
+        "hard": 8
+      }
+    },
     "candidate": {
       "model": "pixie-7b (QLoRA round 6: same 82-pair r5 dataset, r1 stack — 6 epochs, max_seq 1536, final loss 0.123)",
-      "runs": [44, 34, 36],
+      "runs": [
+        44,
+        34,
+        36
+      ],
       "medianChecks": "36/72",
       "tasksMedian": "6/24",
-      "byTierMedian": { "core": "4/7", "multi": "2/9", "hard": "1/8" },
+      "byTierMedian": {
+        "core": "4/7",
+        "multi": "2/9",
+        "hard": "1/8"
+      },
       "notes": "WORST fine-tune round. 6 epochs overfit the 82-pair union into reflexes (loss 0.123 vs r1's 1.198) — the same collapse mode as round 2, now reproduced at max_seq 1536, eliminating seq-len as an explanation. Run 3 even LOST to base."
     },
     "reference": {
       "model": "qwen2.5-coder:7b (same-run controls)",
-      "runs": [27, 22, 30],
+      "runs": [
+        27,
+        22,
+        30
+      ],
       "medianChecks": "27/72",
       "tasksMedian": "9/24",
       "notes": "Round 6 still won head-to-heads 3/3, but by margins within noise."
     },
     "verdict": "Training-stack hypothesis REFUTED: epochs/seq-len do not explain the regression either. The full evidence now: r1 data (32 pairs, 6ep, 1536) = 52-54; r2 (105 pairs, 4ep, 1792) = 43; r3 (122 pairs, 2ep, 1792) = 40; r4 (41 curated, 4ep, 1792) = 45; r5 (82 union, 3ep, 1792) = 46; r6 (82 union, 6ep, 1536) = 36. The ONLY variable that correlates with score is adapter provenance — every retrained-from-scratch attempt lands 36-46, while both r1 runs (original + retrained from its exact data) score 52-54. Remaining suspects: (1) something in r1's original 32 pairs beyond their content — e.g. they were the ONLY data trained before the merge scripts changed message rendering; (2) stochastic seed interaction (SEED=42 is fixed, but r1-retrain matched, so unlikely); (3) unsloth version drift between the original r1 session and today's environment. Next step: treat r1-retrain (pixie-7b-r1, 52-54) as the permanent shipped model, restore the pixie-7b tag to it, and stop blind iteration — future rounds must start FROM the r1-retrain adapter (continue training) rather than from the base model.",
     "method": "npm run eval, identical 24-task suite, 3 same-day runs per model. Round-6 adapter = r5 dataset (82 pairs) trained with EPOCHS=6, MAX_SEQ_LEN=1536 (truncation check: longest pair ~1050 tokens), 36 steps in 22 min, loss 0.123; exported, imported, snapshotted as pixie-7b-r6 before scoring. Logs: training/eval-r6-run1.log, -run2.log, -run3.log; raw rows in gitignored training/eval-results.json."
+  },
+  {
+    "type": "official_baseline",
+    "label": "post-training (Pixie-7B round 7, continuation from r1 adapter) — multi collapses, not shipped",
+    "date": "2026-09-22",
+    "suite": {
+      "tasks": 24,
+      "checks": 72,
+      "tiers": {
+        "core": 7,
+        "multi": 9,
+        "hard": 8
+      }
+    },
+    "candidate": {
+      "model": "pixie-7b (continuation round 7: resumed the recovered r1-retrain adapter and trained on 53 pairs — 41 curated hard/multi + 12 multi5, deduped — 2 epochs, LR 2.5e-5, train_loss 0.511, max_seq 1536)",
+      "runs": [
+        45,
+        44,
+        46
+      ],
+      "medianChecks": "45/72",
+      "tasksMedian": "12/24",
+      "byTierMedian": {
+        "core": "6/7",
+        "multi": "2/9",
+        "hard": "4/8"
+      },
+      "notes": "First continuation experiment (round-7 policy: stop from-scratch retrains). Adapter resumption verified live: continuation banner, 40.4M trainable lora params, and train.py's fresh-init guard passed. Core stays strong and hard matches round 1 (4/8 twice) — but multi collapses to 2/9 in ALL runs, worse than both round-1 variants (6/9 and 4/9). Even a gentle 10x-lower-LR continuation over verified chain traces erodes the multi-file behavior that round 1's original 32 pairs exhibit."
+    },
+    "reference": {
+      "model": "qwen2.5-coder:7b (same-run controls)",
+      "runs": [
+        36,
+        33,
+        29
+      ],
+      "medianChecks": "33/72",
+      "tasksMedian": "9/24",
+      "byTierMedian": {
+        "core": "4/7",
+        "multi": "4/9",
+        "hard": "1/8"
+      },
+      "notes": "Base in its usual 29-39 band; round 7 beats it 3/3."
+    },
+    "verdict": "Continuation does NOT rescue the gap: 45/72 median — ties r4/r5, well short of r1's 52-54 — and multi is at 2/9. This refutes the last cheap recipe hypothesis: data shape (r4/r5), training stack (r6), and now adapter provenance via continuation (r7) all fail. Only the two runs trained on r1's original 32 pairs reach 52-54. Round 1 stays shipped; the multi gap points to something specific about r1's original data that none of the derived datasets reproduce — diff r1.jsonl against the derived pairs (rendered text + content mix) before any further training.",
+    "method": "npm run eval, identical 24-task suite, 3 same-day runs per model. Round-7 recipe: the r1-retrain adapter was recovered by retraining r1.jsonl exactly (loss 1.197 vs 1.198 for the previous r1-retrain) and saved durably to training/pixie-7b-lora-r1redo (r6 adapter backed up first); train.py gained a BASE_ADAPTER continuation path (no second get_peft_model; frozen/fresh-init guards). Exported via export-gguf.py, imported as ollama pixie-7b, snapshot pixie-7b-r7 taken BEFORE scoring. Logs: training/eval-r7-run1..3.log; raw rows in gitignored training/eval-results.json."
   }
 ]

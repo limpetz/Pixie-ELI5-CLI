@@ -2,7 +2,8 @@
 # Tweak, then run the commands in TRAINING.md.
 
 BASE_MODEL = "unsloth/Qwen2.5-Coder-7B-Instruct"
-DATASET_FILE = "training/round5.jsonl"   # 82 pairs: r1 recipe (32) + curated hard/multi (38) + verified multi5 traces (12)
+DATASET_FILE = "training/r7.jsonl"        # round 7: 53 pairs = curated hard/multi (41) + multi5 (12)
+BASE_ADAPTER = "training/pixie-7b-lora-r1redo"  # CONTINUE from the r1-retrain adapter (recovered copy)
 OUTPUT_DIR = "training/pixie-7b-lora"
 
 # --- LoRA adapter ---
@@ -12,10 +13,10 @@ LORA_DROPOUT = 0.05
 TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
 # --- Training schedule ---
-EPOCHS = 6            # round-6 hypothesis: r1's stack exactly (r2-r5 all ran 2-4 epochs)
+EPOCHS = 2            # round 7: gentle continuation — add chain competence, keep r1 behavior
 BATCH_SIZE = 1         # per step; batch 2 thrashed system RAM with tool-turn sequences
 GRAD_ACCUM = 16        # effective batch = BATCH_SIZE * GRAD_ACCUM (kept at 16)
-LEARNING_RATE = 2.5e-4
+LEARNING_RATE = 2.5e-5 # 10x below r1's 2.5e-4: nudge, don't overwrite
 MAX_SEQ_LEN = 1536     # r1's value; longest r5 pair renders to ~1050 tokens, nothing truncates
 
 # --- Hardware ---
