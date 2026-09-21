@@ -1,6 +1,6 @@
 # Pixie — Session Handoff
 
-*Written 2026-09-21 after dataset curation. Read this first when resuming.*
+*Written 2026-09-22 after the round-6 refutation closed the investigation. Read this first when resuming.*
 
 ## What Pixie is
 
@@ -9,187 +9,145 @@ self-improvement pipeline: sessions → dataset → QLoRA fine-tune of
 Qwen2.5-Coder-7B → GGUF → back into the CLI as `pixie-7b`. Phases 1–3 are all
 built; the project is now in the **fine-tune improvement loop** (rounds).
 
-## Where things stand
+## Where things stand (top of file = current truth)
 
-**Shipped model: round-1 adapter** (32 pairs, 6 epochs, loss 1.189) — the
-strongest fine-tune so far. Round 2 (105 pairs, 4 epochs, loss 0.56) **regressed**:
-43/72 vs 53/72 median checks, with the hard tier collapsing to 1/8 (from 4/8).
-Diagnosis: the bigger dataset made the model *reflexive* — in run 3 it
-one-shot every hard task (0 tool rounds, wrong output). Round-1 stays shipped
-until a round-3 recipe beats it on the same eval.
+**Shipped model: round 1** (32 pairs, 6 epochs, loss ~1.19). The live tag is
+verified: `ollama pixie-7b` is blob-identical to `pixie-7b-r1`
+(hash `5c4feb1fdbb3`) and passes the behavioral probe 4/4 tool rounds:
 
-### Eval timeline (canonical record: `docs/baseline.json`)
+```bash
+npx tsx scripts/probe.ts --model pixie-7b --rounds 4   # expect "All 4 rounds acted via tools ✔"
+rm -rf probe-ws
+```
 
-| Label | Model | Median | Notes |
-|---|---|---|---|
-| pre-training | qwen2.5-coder:7b | 44/72 | high variance (41–57) |
-| round 1 | pixie-7b | **53/72** | hard tier 4/8, never narrates-instead-of-acting |
-| round 2 | pixie-7b | 43/72 | hard tier 1/8 — regression, not shipped |
-| round 2 control | qwen2.5-coder:7b | 36/72 | |
+Run that first thing in any new session if you doubt the local model.
+
+### Full scoreboard (canonical record: `docs/baseline.json`)
+
+| Round | Data | Recipe | Runs | Median | Core/Multi/Hard |
+|---|---|---|---|---|---|
+| base control | — | — | 30/31/33 | 31 | — |
+| **round 1** (×2: original + 2026-09-21 retrain from same recipe) | **32 original pairs** | **6ep / seq 1536** | 54/52/52, 53 hist. | **52–54** | 6/6/4 |
+| round 2 | 105 merged | 4ep / 1792 | — | 43 | 5/4/1 |
+| round 3 | 122 merged | 2ep / 1792 | 42/40/40 | 40 | 5/2/3 |
+| round 4 | 41 curated hard/multi | 4ep / 1792 | 43/45/46 | 45 | 7/3/3 |
+| round 5 | 82 union (r1+curated+multi5) | 3ep / 1792 | 46/45/46 | 46 | 5/3/3 |
+| round 6 | same 82 union | 6ep / 1536 | 44/34/36 | **36 (worst)** | 4/3/2 |
 
 Eval = 24-task suite (7 core / 9 multi / 8 hard), 72 checks, 3 runs per model,
 head-to-head A/B (`npm run eval`). Raw rows append to
 `training/eval-results.json` (gitignored) — **baseline.json is the durable record.**
 
-## What this session changed (commit `9af9896`)
+### The closed investigation (rounds 2–6)
 
-1. **Round-3/4 distillation pipeline is now wired and correct**
-   (`scripts/distill.ts`): goal verification via a verifier registry
-   (`id | task text` format), 2 attempts per task with a **pristine workspace
-   reseed between attempts** (`training/seed-workspace.py`), sequential
-   tool-chain requirement (parallel blind calls don't count), sha256 dedupe,
-   `--only` flag. `VERIFY` is exported for testing.
+Three hypotheses were tested and **all refuted**:
 
-2. **Fixed 3 broken + 2 weak verifiers** the new smoke harness caught:
-   - `csvappend` checked `inv.txt` (never seeded) instead of `inventory.csv`,
-     and didn't require the appended row to preserve existing rows.
-   - `team3` only rejected a 4th file named exactly `tester.txt` — now any
-     extra entry fails ("exactly three files").
-   - `wcletter`, `csvprice`, `contactfix` were built with `a ?? b` chains that
-     **invert under null-means-pass semantics**: `a(x) ?? b(x)` requires BOTH
-     to pass (?? falls through only when a *succeeded*). wcletter now accepts
-     either output filename; csvprice checks both cell changes; contactfix
-     checks the one file the task actually mentions.
-   - **Gotcha for future verifiers: for either/or, loop and return null on the
-     first success. For both-required, `??` chains are fine.**
+1. **Data shape** — r4 (curated 41 hard/multi) fixed core/hard but multi
+   stayed 3/9; r5 added verified traces for *every* chronically-failed multi
+   shape (multi5 pool, 12/12 distilled chained) and multi *still* capped at
+   3/9 while core dropped.
+2. **Training stack** — r6 ran the exact r1 recipe (6 epochs, max_seq 1536,
+   truncation-checked) on the r5 data: 36/72, worst round. Overfit into
+   reflexes (loss 0.123), reproducing round 2's collapse at the other seq-len.
+3. **Sequence length** — eliminated by the same r6 result.
 
-3. **`scripts/verify-smoke.ts`** — offline fixture/trap harness (no model
-   calls). Every verifier must pass on a correct workspace and fail on its
-   known lazy shortcut. Run: `npx tsx scripts/verify-smoke.ts`. All 38 checks pass.
+**Conclusion: the only variable that tracks score is adapter provenance.**
+Both round-1 runs score 52–54; five from-scratch retrains on merged/expanded
+data land 36–46 regardless of data mix or recipe. Remaining suspects (untested):
+(a) unsloth/env version drift vs the original r1 session, (b) r1's 32 pairs
+being the only data whose message rendering predates later build-dataset
+changes, (c) subtle interaction between chain traces and simple traces that
+neither slicing nor union isolates.
 
-4. **`scripts/audit-traces.ts`** — one-off audit of the `distilled.jsonl` tail
-   (chain structure, narration on tool turns, grounded write values). Last 6
-   rows audited clean: 1–3 sequential rounds, zero narrated tool turns.
+**Policy going forward: stop blind from-scratch iteration.** Next rounds must
+*continue training from* an existing good adapter (see options below).
 
-5. **Task pools + seeder are now tracked in git** (were gitignored, i.e.
-   machine-local): `training/chain-tasks.txt` (round 3), `chain-retry.txt`,
-   `chain2-tasks.txt` (round 4 — targets the still-failing shapes:
-   command→save chains, exact-N creation, two-edit tasks, create-then-edit),
-   `edit-tasks.txt`, `seed-workspace.py`.
+## What this project changed, in order (commits through `8931d61`)
 
-6. `training/export-gguf.py` resolves `OUT` to the project root
-   (cwd-independent — the round-2 "stale GGUF" incident happened because the
-   first import was built from the wrong adapter; always re-export + re-import
-   before scoring a new round).
+1. **Distillation pipeline** (`scripts/distill.ts`): verifier registry
+   (`id | task text` format), 2 attempts with pristine workspace reseed
+   (`training/seed-workspace.py`), sequential-chain gate, sha256 dedupe,
+   `--only`/`--tasks-file`/`--teacher` flags, attempt-2 scaffolds (per-shape
+   step hints — they fixed llama3.1's one-shotting but *narration-poisoned*
+   weaker teachers; **qwen2.5-coder:7b is the right teacher** for this pool).
+   `VERIFY` is exported for testing.
+2. **Verifier gotchas found via smoke harness** (9 bugs total across the
+   project): for either/or checks, loop and return null on first success —
+   `a ?? b` under null-means-pass semantics means BOTH (this inverted `??`
+   chains bit us three times: wcletter/csvprice/contactfix, half, and nearly
+   again in the multi5 pool). Verifiers must also require *untouched* fields
+   to survive (jsonedit/volume) and reject any extra files, not specific ones.
+3. **`scripts/verify-smoke.ts`** — offline fixture/trap harness, no model
+   calls. Every verifier must pass a correct workspace and fail its known
+   lazy shortcut. Run: `npx tsx scripts/verify-smoke.ts`.
+4. **`scripts/audit-traces.ts`** — audits `distilled.jsonl` tail: chain
+   structure, narration on tool turns, grounded write values.
+5. **Task pools + seeder tracked in git**: `chain-tasks.txt` (r3),
+   `chain-retry.txt`, `chain2-tasks.txt` (r4), `multi5-tasks.txt` +
+   `multi5-retry.txt` (r5), `edit-tasks.txt`, `my-tasks.txt` (r2),
+   `seed-workspace.py`. Datasets (`*.jsonl`) are machine-local — regenerate
+   with the node one-liners in the sections below if lost.
+6. **Round history**: r3 (122 pairs, 40/72) → r4 (curated 41, 45/72, core
+   7/7) → r1-retrain + multi5 pool → r5 (82 union, 46/72) → r6 (r1 stack on
+   union, 36/72). Details in `docs/baseline.json`.
 
-Repo is green: `npm run typecheck` ✔, `npm run selftest` ✔ (all sections).
+### The GGUF-loss incident (do not repeat)
+
+The original round-1 GGUF and adapter were **overwritten with no backup**.
+Recovery was retraining from r1's exact recipe (`training/r1.jsonl`, 6 epochs,
+max_seq 1536, loss 1.198) — which then validated at 52/72, matching the
+original. **Policy: after every `ollama create pixie-7b`, immediately run
+`ollama cp pixie-7b pixie-7b-r<N>` BEFORE scoring.** Current snapshots:
+`pixie-7b-r1` (shipped), `-r4`, `-r5`, `-r6`. The `-r4` copy in Ollama also
+backs the r4 adapter.
 
 ## Environment facts
 
-- **Ollama is running** (`localhost:11434`) with: `pixie-7b` (the round-2 GGUF
-  — note: NOT the shipped round-1 weights), `qwen2.5-coder:7b`, `llama3.1:8b`,
-  `qwen2.5-coder:1.5b-base`, `nomic-embed-text`.
-- Training venv: `training/.venv/Scripts/python.exe` (exists; run
-  `training/train.py` per `training/TRAINING.md` — QLoRA on a local GPU,
-  ~3.7h for round-2's 4 epochs on 105 pairs).
-- Gitignored (machine-local, do not commit): `training/all.jsonl` (122 pairs
-  = 119 verified distilled + 3 real sessions), `distilled.jsonl`,
-  `pixie-7b-lora/` (current adapter = round 2), eval logs/results, `*.gguf`.
-- Untracked heavy dirs: `pixie-7b-gguf/` (round-2 safetensors),
-  `pixie-7b-gguf_gguf/` (Modelfile for `ollama create pixie-7b`),
-  `unsloth_compiled_cache/`. Leave untracked; `unsloth_compiled_cache/` could
-  be added to `.gitignore`.
+- **Ollama running** (`localhost:11434`): `pixie-7b` = `pixie-7b-r1` (shipped,
+  verified), `qwen2.5-coder:7b` (distill teacher), `llama3.1:8b`, `qwen2.5-coder:1.5b-base`, `nomic-embed-text`.
+- **Adapter dirs**: `training/pixie-7b-lora/` = round-6 adapter (latest run
+  always overwrites this); `training/pixie-7b-lora-r4/` = round-4 copy.
+  The **r1-retrain adapter no longer exists on disk** — only its GGUF
+  (`pixie-7b-r1`). To get it back: copy the current `pixie-7b-lora/` aside,
+  rerun r1's recipe (`r1.jsonl`, 6ep, 1536 — ~8 min), and save the result
+  somewhere durable before anything else touches `pixie-7b-lora/`.
+- Training venv: `training/.venv/Scripts/python.exe`; run from `training/`
+  (`train.py` reads `lora_config.py`: DATASET, EPOCHS, MAX_SEQ_LEN, SEED=42).
+  RTX 4060 8 GB; ~8 min/step on the 82-pair union, ~2 min/step on 32 pairs.
+- Export path: `training/export-gguf.py` → project-root `pixie-7b-gguf/`
+  (cwd-independent; re-export + re-import before scoring — the stale-GGUF
+  incident) → `ollama create pixie-7b -f pixie-7b-gguf_gguf/Modelfile`.
+- Datasets on disk (all gitignored): `r1.jsonl` 32, `round4-curated.jsonl`
+  41, `round5.jsonl` 82, `all.jsonl` 122, `distilled.jsonl` 131
+  (119 verified chains + 12 multi5), `dataset-real.jsonl` 3.
+- Run `npm run typecheck`, `npm run selftest`, `npx tsx scripts/verify-smoke.ts`
+  before committing; all green as of this writing.
 
-## Next steps (the round-3 cycle, in order)
+## Next steps — three options, in recommended order
 
-1. **Distill the round-4 pool** (verified chains; reseed is automatic now):
-   ```bash
-   npm run distill -- --only --tasks-file training/chain2-tasks.txt --num 14 --teacher ollama://llama3.1:8b
-   ```
-   (Stronger option: `--teacher openai://gpt-4o-mini` with `OPENAI_API_KEY`.)
-   Expect skips — that's the verifier working. Retry skips with
-   `--offset`/`--temperature` variations. Then `npx tsx scripts/audit-traces.ts 6`.
+**A. Round 7: continuation training (the documented policy).**
+1. Recover the r1-retrain adapter (see Environment facts — ~8 min).
+2. Teach `training/train.py` to load the base as the r1 adapter + merged
+   weights and continue (unsloth `model = FastLanguageModel.get_peft_model`
+   on a loaded PeftModel, or merge-then-LoRA).
+3. Train on `multi5` + `curated` traces at LOW LR (e.g. 2e-5) / 1–2 epochs —
+   the goal is *adding* chain competence without eroding r1's simple-task
+   behavior. Watch that loss starts near r1's ~1.2 scale, not at 0.5+.
+4. Export → import → `ollama cp pixie-7b pixie-7b-r7` → 3-run eval.
+5. Ship only if median > 54 and hard ≥ 4; otherwise restore:
+   `ollama cp pixie-7b-r1 pixie-7b`.
 
-2. **Dataset rebuilt and validated (2026-09-21)** — merged `distilled.jsonl`
-   + `dataset-real.jsonl` with the exported `dedupe()` helper: 122 input/output
-   rows (119 verified distilled + 3 real; no exact duplicates). Validation:
-   every row has tool calls, no tool result indicates failure, and every row
-   ends with an assistant response.
+**B. If continuation fails: r1-only replication sweep.** Rebuild r1's data
+through the *current* build-dataset path (rendering check: diff the chat
+template output of an r1 pair vs a distilled pair) and train r1's exact
+recipe — if that scores ~36–46, the regression is in the *data rendering /
+env drift*, not the data selection. This cleanly separates suspect (b).
 
-3. **Round 3 trained and evaluated (2026-09-21)** — 122 pairs, 2 epochs,
-   final loss **0.933**. Exported and recreated Ollama `pixie-7b`; three eval
-   runs scored **42, 40, 40/72** (median 40), with tier medians core 5/7,
-   multi 2/9, hard 3/8. This is still a regression from round 1's 53/72;
-   do **not** ship round 3. `docs/baseline.json` records the result.
+**C. Env archaeology** (only if A and B fail): pin/inspect unsloth +
+transformers versions vs whatever was installed when r1 was first trained
+(`pip freeze` history is not available — the venv has been reused; consider
+locking versions now: `pip freeze > training/requirements-lock.txt`).
 
-4. **Round 4 is prepared** — `training/round4-curated.jsonl` contains 41
-   pairs: the 38 verified hard/multi traces (rows 81–118 of the merged set)
-   plus 3 real sessions. `training/lora_config.py` now points to this slice
-   and uses 4 epochs, approximately matching round-1 total exposure while
-   removing the 81 simple create-only traces that diluted the targeted skill.
-
-5. **Export + import completed for round 3**: `training/export-gguf.py` (writes to project-root
-   `pixie-7b-gguf/`) → `ollama create pixie-7b -f pixie-7b-gguf_gguf/Modelfile`
-   → verify `ollama run pixie-7b` actually behaves differently from round 2
-   before scoring.
-
-6. **Round 4 trained and evaluated (2026-09-21)** — the curated 41-pair slice
-   (38 verified hard/multi traces + 3 real sessions), 4 epochs, final loss
-   1.262, ~41 min on the RTX 4060. Three eval runs: **43, 45, 46/72** (median
-   45) — the best fine-tune since round 1, beating base 3/3, core now perfect
-   (7/7 in two runs). Still short of round 1's 53/72, so **not shipped**;
-   the gap is entirely the multi tier (2–3/9 vs round 1's 4/9).
-   `docs/baseline.json` records the result.
-
-7. **Round-1 GGUF restored (2026-09-21)** — the original round-1 GGUF had
-   been overwritten by rounds 2–4 with **no backup** (the adapter dir too).
-   Retrained round 1 from its exact recipe: `training/r1.jsonl` (the same
-   32 pairs: rows 0–28 + 3 real sessions of all.jsonl), 6 epochs, max_seq
-   1536, final loss 1.198. Exported and imported as `ollama pixie-7b` —
-   **the shipped model is live again**. Snapshots now in Ollama:
-   `pixie-7b-r1` (shipped baseline) and `pixie-7b-r4` (best challenger).
-   **Policy: after every future `ollama create pixie-7b`, run
-   `ollama cp pixie-7b pixie-7b-r<N>` before scoring.**
-
-8. **Round-5 multi-tier pool built (2026-09-21)** — `training/multi5-tasks.txt`
-   targets the seven multi shapes r4 failed in all 3 runs: flat exact-N
-   files (colors3/snacks2), read→compute→save (double/half), extract-line
-   (titleline/lastline), unnamed-typo find-and-fix (findfix/findfix2),
-   list-append (keepadd), JSON edit (jsonedit), read-3-files→pick (pickfile).
-   Verifiers + scaffolds in distill.ts, seeds in seed-workspace.py, smoke
-   fixtures/traps in verify-smoke.ts (which caught two more verifier bugs:
-   a third ??-on-null inversion in `half`, and jsonedit not requiring the
-   untouched `volume` field to survive). All smoke tests pass.
-
-9. **Round-5 trained and evaluated (2026-09-21) — NOT shipped**:
-   - Distilled the multi5 pool (9/12 first pass, 3 recovered via retry),
-     merged r1 (32) + curated (38) + multi5 (12) → `round5.jsonl`, 82 pairs,
-     3 epochs, loss 0.839, 1h48m on the RTX 4060.
-   - Eval: **46, 45, 46/72** (median 46) — beats base 3/3 but TIES round 4
-     (45) and remains ~7 short of r1's 53. Tier medians: core 5/7 (r4 had
-     7/7), multi 3/9 (target was 6/9), hard 3/8.
-   - **Key negative result**: verified multi5 coverage did NOT fix the multi
-     tier, and the union slightly eroded core. Two dataset-shape experiments
-     (r4 curated slice, r5 union) both cap multi at ~4/9 while the retrained
-     r1 control sits at 52-54 with multi 5-6/9 — the gap is probably NOT a
-     data-shape problem. `docs/baseline.json` records the full entry.
-   - Snapshots: `ollama pixie-7b-r5` = round 5; `pixie-7b-r1` = shipped
-     baseline; `pixie-7b-r4`. Current `pixie-7b` tag = round 5.
-
-10. **Round 6 trained and evaluated (2026-09-21) — WORST round; stack
-    hypothesis refuted.** Same 82-pair r5 dataset on r1's exact stack
-    (6 epochs, max_seq 1536, truncation-checked) → loss 0.123, eval
-    **44, 34, 36/72** (median 36), run 3 losing to base. 6 epochs overfit
-    the union into reflexes exactly like round 2 did — seq-len eliminated.
-    Score table: r1 data 52-54 · r2 43 · r3 40 · r4 45 · r5 46 · r6 36.
-    The only variable that tracks score is **adapter provenance**: both r1
-    runs (original + retrained from its exact data) score 52-54; every
-    from-scratch retrain on merged/expanded data lands 36-46.
-
-11. **Current standing + what to do next**:
-    - **Shipped model: `pixie-7b-r1` (the retrained round 1, 52-54/72).**
-      Restore the tag first thing next session:
-      `ollama cp pixie-7b-r1 pixie-7b`. Snapshots in Ollama: r1, r4, r5, r6.
-    - **Stop blind from-scratch iteration.** Five from-scratch attempts have
-      never beaten r1; the r1-retrain adapter (`training/pixie-7b-lora-r4`
-      holds a copy of the r4 adapter — the r1-retrain adapter was overwritten
-      by r5/r6 training, but its GGUF lives in `pixie-7b-r1`). Future rounds
-      must CONTINUE from an existing good adapter (load `pixie-7b-r1`'s
-      adapter/merged weights and fine-tune further on new data) instead of
-      starting from the base model.
-    - Other open suspects if continuation also fails: unsloth version drift
-      vs the original r1 session; r1's pairs being the only data whose
-      message rendering predates later build-dataset changes.
-
-12. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
-   if the recipe changed materially.
+Regardless of path: any new eval result goes into `docs/baseline.json` +
+this file, and the `pixie-7b` tag must end the session pointing at the best
+known model (currently `pixie-7b-r1`).
