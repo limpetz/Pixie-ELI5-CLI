@@ -67,5 +67,28 @@
     },
     "verdict": "Round 2 beats base head-to-head (3/3) but REGRESSED against round 1 (43/72 vs 53/72 median), driven entirely by the hard tier (1/8 vs 4/8). Round-1 adapter (32 pairs, 6 epochs) remains the shipped model until a round-3 recipe (fewer epochs on the merged dataset, or round-1 data + a small hard-tier slice) proves otherwise.",
     "method": "npm run eval, identical 24-task suite, 3 same-day runs per model. Fresh round-2 GGUF exported via training/export-gguf.py and re-imported into Ollama before scoring (export-gguf.py OUT path was fixed to always resolve to the project root after a cwd-dependent output bug put the first round-2 GGUF in training/pixie-7b-gguf_gguf/). Raw rows appended to training/eval-results.json (gitignored); logs: training/eval-post-r2.log, -r2b.log, -r2c.log."
+  },
+  {
+    "type": "official_baseline",
+    "label": "post-training (Pixie-7B round 3) — REGRESSION vs round 1",
+    "date": "2026-09-21",
+    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "candidate": {
+      "model": "pixie-7b (QLoRA round 3: 122 pairs, 2 epochs, final loss 0.933, LR 2.5e-4, max_seq 1792)",
+      "runs": [42, 40, 40],
+      "medianChecks": "40/72",
+      "tasksMedian": "9/24",
+      "byTierMedian": { "core": "5/7", "multi": "2/9", "hard": "3/8" },
+      "notes": "Training was conservative and loss avoided round-2's suspicious 0.56, but the merged dataset still weakened multi-file behavior. The model continues to act on many hard tasks, but does not beat round 1 overall."
+    },
+    "reference": {
+      "model": "qwen2.5-coder:7b (same-run controls)",
+      "runs": [21, 34, 23],
+      "medianChecks": "23/72",
+      "tasksMedian": "5/24",
+      "notes": "Base remains highly variable; round 3 beats it on checks in all three runs, but this is not sufficient for shipping."
+    },
+    "verdict": "Round 3 REGRESSED against round 1 (40/72 vs 53/72 median) despite the lower epoch count. Core held at 5/7, hard improved over round 2 to 3/8, but multi collapsed to 2/9. Keep round 1 as the target; do not ship round 3. Next experiment should reduce the dataset to a curated hard/multi slice or restore round-1 data balance rather than adding more traces.",
+    "method": "npm run eval, identical 24-task suite, 3 same-day runs per model after exporting the round-3 adapter with training/export-gguf.py and recreating Ollama pixie-7b. Logs: training/eval-r3-run1.log, -run2.log, -run3.log. Raw rows appended to training/eval-results.json (gitignored)."
   }
 ]
