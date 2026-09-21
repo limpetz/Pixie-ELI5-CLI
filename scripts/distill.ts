@@ -281,6 +281,53 @@ export const VERIFY: Record<string, (ws: string) => string | null> = {
   // Single-file task: create contact.txt, then fix its own typo.
   contactfix: (ws) => fileLacks(ws, "contact.txt", "favrite"),
   aboutedit: (ws) => fileContains(ws, "about.html", "Our Story"),
+  // ── round 5: the multi-tier shapes r4 failed in ALL 3 eval runs ──
+  colors3: (ws) => {
+    for (const f of ["red.txt", "green.txt", "blue.txt"]) {
+      const problem = fileContains(ws, f, f.replace(".txt", ""));
+      if (problem) return problem;
+    }
+    return null;
+  },
+  snacks2: (ws) => {
+    for (const f of ["chips.txt", "soda.txt"]) {
+      const problem = fileContains(ws, f, f.replace(".txt", ""));
+      if (problem) return problem;
+    }
+    return null;
+  },
+  double: (ws) => fileContains(ws, "double-done.txt", "42"),
+  // Either/or must loop (?? only falls through when the first check SUCCEEDED).
+  half: (ws) => {
+    for (const v of ["10.5", "10"]) {
+      if (fileContains(ws, "half.txt", v) === null) return null;
+    }
+    return 'half.txt lacks "10.5" or "10"';
+  },
+  titleline: (ws) => fileIs(ws, "title-a.txt", ["roses are red"]),
+  lastline: (ws) => fileContains(ws, "ending.txt", "pixie is for you"),
+  findfix: (ws) => fileLacks(ws, "notes-a.txt", "favrite") ?? fileContains(ws, "notes-a.txt", "favorite"),
+  findfix2: (ws) => fileLacks(ws, "notes-b.txt", "teh"),
+  keepadd: (ws) => {
+    for (const item of ["bananas", "milk", "bread", "eggs"]) {
+      const problem = fileContains(ws, "shopping-b.txt", item);
+      if (problem) return problem;
+    }
+    return null;
+  },
+  jsonedit: (ws) => {
+    let content: string;
+    try {
+      content = readFileSync(join(ws, "config-a.json"), "utf8");
+    } catch {
+      return "config-a.json unreadable";
+    }
+    if (!content.includes("dark")) return 'config-a.json lacks "dark"';
+    if (content.includes("light")) return 'config-a.json still has "light"';
+    // The eval requires everything else unchanged — volume must survive.
+    return content.includes("volume") ? null : 'config-a.json lost "volume"';
+  },
+  pickfile: (ws) => fileContains(ws, "pick.txt", "2"),
 };
 
 /** Deterministic workspace restore between tasks/retries, so a half-done
@@ -324,7 +371,7 @@ function countSequentialRounds(path: string): number {
 /** Verified tasks whose goal is pure creation (exact-N files): the teacher
  * may legitimately fire all writes in ONE parallel round, so the
  * sequential-chain requirement below must not apply to them. */
-const PARALLEL_OK = new Set(["team3", "shapes4"]);
+const PARALLEL_OK = new Set(["team3", "shapes4", "colors3", "snacks2"]);
 
 /** Strong teachers one-shot these tasks (one write_file with the final
  * content) — efficient, but a one-shot trace teaches the student nothing
@@ -346,6 +393,17 @@ const SCAFFOLD: Record<string, string> = {
   aboutedit: " Work step by step: (1) create about.html with write_file, (2) read it back, (3) change the heading with edit_file, (4) read the file again and give your summary.",
   team3: " Work step by step: (1) create the team folder's first file, (2) the second, (3) the third — counting as you go so there are exactly three — then list the folder and give your summary.",
   shapes4: " Work step by step: (1) create the shapes folder's first file, (2) the second, (3) the third, (4) the fourth — counting as you go so there are exactly four — then list the folder and give your summary.",
+  colors3: " Work step by step: (1) create red.txt, (2) create green.txt, (3) create blue.txt — counting as you go so there are exactly three — then list the workspace and give your summary.",
+  snacks2: " Work step by step: (1) create chips.txt, (2) create soda.txt — exactly two — then list the workspace and give your summary.",
+  double: " Work step by step: (1) read double.txt, (2) work out the doubled number, (3) write just the result into double-done.txt, (4) read it back to check, then give your summary.",
+  half: " Work step by step: (1) read double.txt, (2) work out the halved number, (3) write just the result into half.txt, (4) read it back to check, then give your summary.",
+  titleline: " Work step by step: (1) read poem-a.txt, (2) write its first line into title-a.txt, (3) read title-a.txt back to check it matches exactly, then give your summary.",
+  lastline: " Work step by step: (1) read poem-a.txt, (2) write its last line into ending.txt, (3) read ending.txt back to check it matches exactly, then give your summary.",
+  findfix: " Work step by step: (1) read notes-a.txt and find the misspelled word, (2) fix it with edit_file, (3) read the file back to check, then give your summary.",
+  findfix2: " Work step by step: (1) read notes-b.txt and find the misspelled word, (2) fix it with edit_file, (3) read the file back to check, then give your summary.",
+  keepadd: " Work step by step: (1) read shopping-b.txt, (2) use edit_file to add bananas at the end, (3) read the file back to check all the old items are still there, then give your summary.",
+  jsonedit: " Work step by step: (1) read config-a.json, (2) use edit_file to change the theme value to dark, (3) read the file back to check, then give your summary.",
+  pickfile: " Work step by step: (1) read a1.txt, (2) read a2.txt, (3) read a3.txt, (4) write just the number of the dragon file into pick.txt, then give your summary.",
 };
 /** Fallback for verified ids not in SCAFFOLD (e.g. chain-tasks pool ids). */
 const DEFAULT_SCAFFOLD =

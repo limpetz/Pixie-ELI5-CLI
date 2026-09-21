@@ -1,0 +1,33 @@
+# Round-5 distillation pool: the multi-tier shapes Pixie-7B round 4 failed
+# ALL THREE eval runs on (see training/eval-r4-run*.log and the analysis in
+# handoff.md). Each line: <verifier-id> | <task text>. Verifiers live in
+# scripts/distill.ts; seed files were added to training/seed-workspace.py.
+#
+# Diagnosis (why the curated slice didn't fix these):
+#   - task 8  (flat exact-N files): team3/shapes4 teach exact counts in
+#     FOLDERS; the flat case at workspace root never appears in training.
+#   - task 11 (unnamed typo): every pool task NAMES the typo ("teh"/"suger");
+#     the eval makes the model find it first.
+#   - task 15 (read→compute→save) and 16 (extract line→new file): the chain
+#     pool only covers command→save; no trace reads a VALUE then derives one.
+#   - task 12/13 (append/JSON edit): covered only for .csv/.ini, not lists/JSON.
+# Seed before the batch:  training/.venv/Scripts/python.exe training/seed-workspace.py
+# (the reseed also happens automatically between distill attempts)
+# --- flat exact-N multi-file creation (task 8: 3/3 fails) ---
+colors3  | create three files: red.txt, green.txt, and blue.txt, each one containing just its color name
+snacks2  | create two files: chips.txt and soda.txt, each containing just its snack name
+# --- read a value, compute, save (task 15: 3/3 fails; double.txt holds 21) ---
+double   | read the number in double.txt, double it, and save just the result into double-done.txt
+half     | read the number in double.txt, cut it in half, and save just the result into half.txt
+# --- extract a line and write it elsewhere (task 16: 3/3 fails) ---
+titleline | copy the first line of poem-a.txt into a new file called title-a.txt
+lastline  | copy the last line of poem-a.txt into a new file called ending.txt
+# --- find and fix an UNNAMED typo (task 11: 3/3 fails) ---
+findfix  | one word in notes-a.txt is misspelled — find it and fix it
+findfix2 | notes-b.txt has a spelling mistake somewhere — find it and fix it
+# --- append while preserving (task 12) ---
+keepadd  | add bananas to the end of the list in shopping-b.txt, keeping every item already in it
+# --- JSON config edit (task 13) ---
+jsonedit | in config-a.json, change the theme from light to dark. Keep everything else the same.
+# --- read several files, decide, write (task 14) ---
+pickfile | read a1.txt, a2.txt, and a3.txt, then write just the number of the file that mentions a dragon into pick.txt

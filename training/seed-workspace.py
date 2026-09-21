@@ -40,6 +40,18 @@ FILES = {
     "wishlist.txt": "robot dog\ntoy truck\npuzzle\nstorybook\n",
     # --- data files for the round-4 chain2 tasks ---
     "inventory.csv": "item,amount\napples,4\nbananas,6\n",
+    # --- data files for the round-5 multi-tier pool (r4 eval failures) ---
+    # double.txt: 21 → doubled 42 (read→compute→save, eval task 15 shape)
+    "double.txt": "21\n",
+    "poem-a.txt": "roses are red\nviolets are blue\npixie is for you\n",
+    # notes-a/b: UNNAMED typos — the model must find them (eval task 11 shape)
+    "notes-a.txt": "My favrite color is teal.\nI also like rainy mornings.\n",
+    "notes-b.txt": "Today I read teh best book.\nIt was teh best day.\n",
+    "shopping-b.txt": "milk\nbread\neggs\n",
+    "config-a.json": '{\n  "theme": "light",\n  "volume": 3\n}\n',
+    "a1.txt": "I speak without a mouth and hear without ears.\n",
+    "a2.txt": "An old dragon lives at the edge of the forest.\n",
+    "a3.txt": "The more you take, the more you leave behind.\n",
     # inv2.csv is a pristine COPY of inventory.csv so the csvprice two-edit
     # task edits an existing file (the teacher hallucinates a nonexistent
     # copy_file tool when asked to copy first — see distill-chain2e.log).
@@ -65,6 +77,9 @@ for derived in (
     "toycount.txt", "temp.txt", "calc2.txt", "quotient.txt", "power.txt",
     "files.txt", "today.txt", "linecount2.txt", "linecount3.txt", "pow2.txt", "tmp-calc.txt",
     "total-sh.txt", "inv.txt", "inv2.txt",
+    # round-5 multi-tier pool outputs
+    "red.txt", "green.txt", "blue.txt", "chips.txt", "soda.txt",
+    "double-done.txt", "half.txt", "title-a.txt", "ending.txt", "pick.txt",
     # round-4 two-edit targets and multi-file shapes
     "letter-c.txt", "settings-c.ini", "recipe-c.md", "recipe-d.md",
     "contact.txt", "contact-b.txt", "about.html",
