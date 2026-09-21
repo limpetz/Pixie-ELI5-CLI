@@ -110,19 +110,24 @@ Repo is green: `npm run typecheck` ✔, `npm run selftest` ✔ (all sections).
    final loss **0.933**. Exported and recreated Ollama `pixie-7b`; three eval
    runs scored **42, 40, 40/72** (median 40), with tier medians core 5/7,
    multi 2/9, hard 3/8. This is still a regression from round 1's 53/72;
-   do **not** ship round 3. `docs/baseline.json` now records the result.
+   do **not** ship round 3. `docs/baseline.json` records the result.
 
-4. **Export + import completed**: `training/export-gguf.py` (writes to project-root
+4. **Round 4 is prepared** — `training/round4-curated.jsonl` contains 41
+   pairs: the 38 verified hard/multi traces (rows 81–118 of the merged set)
+   plus 3 real sessions. `training/lora_config.py` now points to this slice
+   and uses 4 epochs, approximately matching round-1 total exposure while
+   removing the 81 simple create-only traces that diluted the targeted skill.
+
+5. **Export + import completed for round 3**: `training/export-gguf.py` (writes to project-root
    `pixie-7b-gguf/`) → `ollama create pixie-7b -f pixie-7b-gguf_gguf/Modelfile`
    → verify `ollama run pixie-7b` actually behaves differently from round 2
    before scoring.
 
-5. **Next experiment**: Round 3 improved hard over round 2 (3/8 vs 1/8)
-   but multi collapsed (2/9). The next recipe should restore round-1 data
-   balance or train only a curated hard/multi slice; adding all 119 distilled
-   traces is not helping overall. The current Ollama `pixie-7b` points at
-   round 3, so restore the round-1 GGUF if available before using it as the
-   shipped CLI model. **Ship only if median beats 53/72 and hard tier ≥ 4/8.**
+6. **Train/evaluate round 4**: the curated slice is ready. Run the normal
+   train → export → `ollama create pixie-7b` → three eval runs. The current
+   Ollama `pixie-7b` points at round 3, so restore the round-1 GGUF if available
+   before using it as the shipped CLI model. **Ship only if median beats 53/72
+   and hard tier ≥ 4/8.**
 
-6. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
+7. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
    if the recipe changed materially.

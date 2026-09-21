@@ -2,7 +2,7 @@
 # Tweak, then run the commands in TRAINING.md.
 
 BASE_MODEL = "unsloth/Qwen2.5-Coder-7B-Instruct"
-DATASET_FILE = "training/all.jsonl"   # 122 pairs: 119 verified distilled traces + 3 real sessions
+DATASET_FILE = "training/round4-curated.jsonl"   # 41 pairs: 38 verified hard/multi traces + 3 real sessions
 OUTPUT_DIR = "training/pixie-7b-lora"
 
 # --- LoRA adapter ---
@@ -12,7 +12,7 @@ LORA_DROPOUT = 0.05
 TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
 # --- Training schedule ---
-EPOCHS = 2            # conservative round-3 schedule; round 2 overfit 105 pairs at 4 epochs
+EPOCHS = 4            # roughly round-1 exposure on the smaller targeted slice
 BATCH_SIZE = 1         # per step; batch 2 thrashed system RAM with tool-turn sequences
 GRAD_ACCUM = 16        # effective batch = BATCH_SIZE * GRAD_ACCUM (kept at 16)
 LEARNING_RATE = 2.5e-4
