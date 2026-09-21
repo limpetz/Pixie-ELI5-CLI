@@ -151,20 +151,28 @@ Repo is green: `npm run typecheck` ✔, `npm run selftest` ✔ (all sections).
    a third ??-on-null inversion in `half`, and jsonedit not requiring the
    untouched `volume` field to survive). All smoke tests pass.
 
-9. **Round-5 cycle status (2026-09-21, IN FLIGHT)**:
-   - (a) ✅ multi5 pool distilled: 9/12 first pass, all 3 stragglers
-     (lastline/findfix/jsonedit) recovered via `multi5-retry.txt` at temp 0.9.
-     Audit clean (0 narrated tool turns, 1–7 chained rounds).
-   - (b) ✅ `training/round5.jsonl` = r1 (32) + r4 curated (38) + multi5 (12),
-     deduped → **82 pairs**, all validated (tool calls, no failures, healthy
-     endings). lora_config → 3 epochs, committed `1a93ad6`.
-   - (c) 🔄 TRAINING NOW: `training/train-r5.log`, 18 steps @ ~8 min/step
-     (slower than r4 — longer chain sequences), ETA ~2h from 4/18 steps.
-   - (d) pending: export → `ollama create pixie-7b` → **`ollama cp pixie-7b
-     pixie-7b-r5`** → 3 evals (logs `training/eval-r5-run*.log`).
-   - Also: restored r1 validated at 52/72 median (54/52/52) — matches the
-     original 53/72 baseline; eval logs `training/eval-r1redo-run*.log`.
-   - **Ship only if median beats 53/72 and hard tier ≥ 4/8.**
+9. **Round-5 trained and evaluated (2026-09-21) — NOT shipped**:
+   - Distilled the multi5 pool (9/12 first pass, 3 recovered via retry),
+     merged r1 (32) + curated (38) + multi5 (12) → `round5.jsonl`, 82 pairs,
+     3 epochs, loss 0.839, 1h48m on the RTX 4060.
+   - Eval: **46, 45, 46/72** (median 46) — beats base 3/3 but TIES round 4
+     (45) and remains ~7 short of r1's 53. Tier medians: core 5/7 (r4 had
+     7/7), multi 3/9 (target was 6/9), hard 3/8.
+   - **Key negative result**: verified multi5 coverage did NOT fix the multi
+     tier, and the union slightly eroded core. Two dataset-shape experiments
+     (r4 curated slice, r5 union) both cap multi at ~4/9 while the retrained
+     r1 control sits at 52-54 with multi 5-6/9 — the gap is probably NOT a
+     data-shape problem. `docs/baseline.json` records the full entry.
+   - Snapshots: `ollama pixie-7b-r5` = round 5; `pixie-7b-r1` = shipped
+     baseline; `pixie-7b-r4`. Current `pixie-7b` tag = round 5.
 
-10. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
+10. **Next experiment (round 6) — training-stack hypothesis**: retrain the
+    SAME r5 dataset with the r1 training stack exactly: `EPOCHS = 6`,
+    `MAX_SEQ_LEN = 1536` in `training/lora_config.py` (r1 was 6/1536; every
+    regressed round r2-r5 ran 2-4 epochs at 1792 — the constant nobody
+    changed). Watch final loss vs r1's 1.198. Then export, `ollama create
+    pixie-7b`, **`ollama cp pixie-7b pixie-7b-r6`**, 3 evals.
+    **Ship only if median beats 53/72 and hard tier ≥ 4/8.**
+
+11. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
    if the recipe changed materially.

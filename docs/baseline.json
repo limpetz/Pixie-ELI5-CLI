@@ -113,5 +113,28 @@
     },
     "verdict": "Round 4 is the best fine-tune since round 1 (45/72 median vs 43 round 2, 40 round 3) and beats base 3/3, but still REGRESSES vs round 1 (53/72) — do not ship. Core is solved; multi is the gap. Next recipe: round-1's original 32 pairs + the curated hard/multi slice (deduped) to restore multi-file variety without diluting the chain training.",
     "method": "npm run eval, identical 24-task suite, 3 same-day runs per model. Round-4 adapter trained on training/round4-curated.jsonl (rows 81-118 of all.jsonl = verified chain/two-edit/exact-N traces + real sessions), exported via export-gguf.py, re-imported as ollama pixie-7b. Logs: training/eval-r4-run1.log, -run2.log, -run3.log; raw rows in gitignored training/eval-results.json."
+  },
+  {
+    "type": "official_baseline",
+    "label": "post-training (Pixie-7B round 5, r1+curated+multi5 union) — multi still capped, not shipped",
+    "date": "2026-09-21",
+    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "candidate": {
+      "model": "pixie-7b (QLoRA round 5: 82 pairs — r1 recipe 32 + r4 curated 38 + verified multi5 12 — 3 epochs, final loss 0.839)",
+      "runs": [46, 45, 46],
+      "medianChecks": "46/72",
+      "tasksMedian": "11/24",
+      "byTierMedian": { "core": "5/7", "multi": "3/9", "hard": "3/8" },
+      "notes": "Wins all 3 head-to-heads. Surprisingly, core DROPPED to 5/7 (r4 had 7/7) despite this union containing r1's simple creates. Multi only inched up (3-4/9 vs r4's 2-3/9) even though every chronically-failed multi shape now has verified training coverage. The added data did not convert into multi gains — and slight core erosion suggests the union still pulls the model away from round-1 behavior rather than adding to it."
+    },
+    "reference": {
+      "model": "qwen2.5-coder:7b (same-run controls)",
+      "runs": [30, 31, 33],
+      "medianChecks": "31/72",
+      "tasksMedian": "9/24",
+      "notes": "Base in its usual band; round 5 beats it 3/3."
+    },
+    "verdict": "Round 5 ties round 4 (46 vs 45 median, both far from r1's 53) — adding verified multi5 coverage did NOT fix the multi tier. Two rounds of dataset-shape experiments (r4 curated, r5 union) have failed to move multi past ~4/9, while the retrained r1 control sits at 52-54/72 with multi 5-6/9. Conclusion: the multi gap is likely not a data-shape problem — suspect the training stack instead: r1 was trained at max_seq 1536 vs 1792 for r2-r5, and unsloth's fused-LoRA-kernel skip (lora_dropout 0.05) differs from whatever r1's original environment did. Next experiment: retrain the r5 dataset with EXACTLY the r1 recipe (max_seq 1536, 6 epochs, same LR) instead of the adapted recipe.",
+    "method": "npm run eval, identical 24-task suite, 3 same-day runs per model. multi5 traces distilled with goal verification (9/12 first pass, 3 via multi5-retry.txt), dataset merged with the exported dedupe() helper, trained (18 steps, 1h48m, loss 0.839), exported via export-gguf.py, imported as ollama pixie-7b AND snapshotted as pixie-7b-r5 before scoring. Logs: training/eval-r5-run1.log, -run2.log, -run3.log; raw rows in gitignored training/eval-results.json."
   }
 ]
