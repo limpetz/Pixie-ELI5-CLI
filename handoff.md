@@ -151,14 +151,20 @@ Repo is green: `npm run typecheck` ✔, `npm run selftest` ✔ (all sections).
    a third ??-on-null inversion in `half`, and jsonedit not requiring the
    untouched `volume` field to survive). All smoke tests pass.
 
-9. **Next steps, in order**: (a) distill the multi5 pool with
-   `npm run distill -- --only --tasks-file training/multi5-tasks.txt --num 12
-   --teacher ollama://qwen2.5-coder:7b --temperature 0.7`; (b) build the
-   round-5 dataset = r1.jsonl + verified multi5 traces (+ optionally the r4
-   curated slice), deduped via the exported `dedupe()` helper (use a
-   project-local temp path — `/tmp` breaks on Windows node); (c) train,
-   export, `ollama create pixie-7b` **then `ollama cp` snapshot**, 3 evals.
-   **Ship only if median beats 53/72 and hard tier ≥ 4/8.**
+9. **Round-5 cycle status (2026-09-21, IN FLIGHT)**:
+   - (a) ✅ multi5 pool distilled: 9/12 first pass, all 3 stragglers
+     (lastline/findfix/jsonedit) recovered via `multi5-retry.txt` at temp 0.9.
+     Audit clean (0 narrated tool turns, 1–7 chained rounds).
+   - (b) ✅ `training/round5.jsonl` = r1 (32) + r4 curated (38) + multi5 (12),
+     deduped → **82 pairs**, all validated (tool calls, no failures, healthy
+     endings). lora_config → 3 epochs, committed `1a93ad6`.
+   - (c) 🔄 TRAINING NOW: `training/train-r5.log`, 18 steps @ ~8 min/step
+     (slower than r4 — longer chain sequences), ETA ~2h from 4/18 steps.
+   - (d) pending: export → `ollama create pixie-7b` → **`ollama cp pixie-7b
+     pixie-7b-r5`** → 3 evals (logs `training/eval-r5-run*.log`).
+   - Also: restored r1 validated at 52/72 median (54/52/52) — matches the
+     original 53/72 baseline; eval logs `training/eval-r1redo-run*.log`.
+   - **Ship only if median beats 53/72 and hard tier ≥ 4/8.**
 
 10. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
    if the recipe changed materially.
