@@ -166,13 +166,30 @@ Repo is green: `npm run typecheck` ✔, `npm run selftest` ✔ (all sections).
    - Snapshots: `ollama pixie-7b-r5` = round 5; `pixie-7b-r1` = shipped
      baseline; `pixie-7b-r4`. Current `pixie-7b` tag = round 5.
 
-10. **Next experiment (round 6) — training-stack hypothesis**: retrain the
-    SAME r5 dataset with the r1 training stack exactly: `EPOCHS = 6`,
-    `MAX_SEQ_LEN = 1536` in `training/lora_config.py` (r1 was 6/1536; every
-    regressed round r2-r5 ran 2-4 epochs at 1792 — the constant nobody
-    changed). Watch final loss vs r1's 1.198. Then export, `ollama create
-    pixie-7b`, **`ollama cp pixie-7b pixie-7b-r6`**, 3 evals.
-    **Ship only if median beats 53/72 and hard tier ≥ 4/8.**
+10. **Round 6 trained and evaluated (2026-09-21) — WORST round; stack
+    hypothesis refuted.** Same 82-pair r5 dataset on r1's exact stack
+    (6 epochs, max_seq 1536, truncation-checked) → loss 0.123, eval
+    **44, 34, 36/72** (median 36), run 3 losing to base. 6 epochs overfit
+    the union into reflexes exactly like round 2 did — seq-len eliminated.
+    Score table: r1 data 52-54 · r2 43 · r3 40 · r4 45 · r5 46 · r6 36.
+    The only variable that tracks score is **adapter provenance**: both r1
+    runs (original + retrained from its exact data) score 52-54; every
+    from-scratch retrain on merged/expanded data lands 36-46.
 
-11. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
+11. **Current standing + what to do next**:
+    - **Shipped model: `pixie-7b-r1` (the retrained round 1, 52-54/72).**
+      Restore the tag first thing next session:
+      `ollama cp pixie-7b-r1 pixie-7b`. Snapshots in Ollama: r1, r4, r5, r6.
+    - **Stop blind from-scratch iteration.** Five from-scratch attempts have
+      never beaten r1; the r1-retrain adapter (`training/pixie-7b-lora-r4`
+      holds a copy of the r4 adapter — the r1-retrain adapter was overwritten
+      by r5/r6 training, but its GGUF lives in `pixie-7b-r1`). Future rounds
+      must CONTINUE from an existing good adapter (load `pixie-7b-r1`'s
+      adapter/merged weights and fine-tune further on new data) instead of
+      starting from the base model.
+    - Other open suspects if continuation also fails: unsloth version drift
+      vs the original r1 session; r1's pairs being the only data whose
+      message rendering predates later build-dataset changes.
+
+12. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
    if the recipe changed materially.
