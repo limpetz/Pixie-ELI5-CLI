@@ -1,0 +1,10 @@
+# Round-3 retry batch: only the tasks that failed verification in run 5.
+# Same ids as chain-tasks.txt (verifiers already corrected there).
+letterlines | count how many lines letter.txt has and write just that number in linecount.txt
+calc2 | use a command to calculate 9 times 8 and save just the number in calc2.txt
+quotient | compute 100 divided by 4 with a command and write just the answer in quotient.txt
+wcletter | use a command to count the lines in letter.txt and save just the number in linecount2.txt
+fixtwo | letter-a.txt has teh twice and recipe-a.md has suger — fix both files
+recipesugar | in recipe-b.md, change suger to sugar and also change 1 cup of flour to 2 cups of flour
+settingslook | in settings-b.ini, change [appearance] to [look and feel] and also change volume = 3 to volume = 7
+letterrecipe | in letter-b.txt, fix teh to the, and in recipe.md, change Mash the bananas to Peel and mash the bananas

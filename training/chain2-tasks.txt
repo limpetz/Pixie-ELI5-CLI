@@ -1,0 +1,29 @@
+# Round-4 distillation pool: the shapes round-3 evals still fail every run.
+# Format per line:  <verifier-id> | <task text>
+# Verifiers live in scripts/distill.ts; expected values are noted inline.
+# Targets (see training/eval-v3-run*.log):
+#   - command→save chains: model runs the command, then narrates instead of
+#     writing the output file (tasks 15/17/24). Dataset has ZERO pairs with a
+#     run_command followed by a second tool turn.
+#   - exact-N multi-file creation: writes 1-2 files, stops (tasks 8/20).
+#   - two edits in one task + create-then-edit in one conversation (tasks 11/13).
+# Seed before the batch AND between retries:
+#   training/.venv/Scripts/python.exe training/seed-workspace.py
+# --- run a command, then save its output (expected values noted) ---
+cmdsave    | use a command to calculate 7 times 6 and save the output into tmp-calc.txt
+wcletter3  | use a command to count the lines in letter.txt, then save just that number into linecount3.txt
+pow2       | use a command to calculate 2 to the power of 7 and save the result into pow2.txt
+cmdtotal   | add up the three prices in shopping.txt using a command, and save just the total into total-sh.txt
+csvappend  | use a command to append a new line to inventory.csv: cherries,3 — then check the file shows it
+csvsum     | use a command to add up the amounts in inventory.csv (4 and 6) and save just the total into inv2.txt
+# --- exact-N multi-file creation ---
+team3      | make a folder called team with exactly three files in it: dev.txt, design.txt, and manager.txt, each with one role description
+shapes4    | create a folder named shapes containing exactly four files: square.txt, circle.txt, triangle.txt, and hexagon.txt, each naming its shape
+# --- two edits in one task, each on its own pristine file copy ---
+settingsc   | in settings-c.ini, change theme = light to theme = dark, and also change language = en to language = fr — use edit_file for both
+recipesugar2 | in recipe-c.md, change suger to sugar and also change 1 cup of flour to 2 cups of flour — use edit_file for both
+recipesalt  | in recipe-d.md, add a pinch of salt to the ingredients, and change "Mix everything in a bowl." to "Mix the batter in a bowl." — use edit_file for both
+csvprice    | make a copy of inventory.csv named inv2.csv, then in inv2.csv change the apples amount from 4 to 5 and the bananas amount from 6 to 9
+# --- create, then edit in the same conversation ---
+contactfix | create a file named contact.txt that says My favrite color is teal, then fix the favrite typo to favorite in that same file
+aboutedit  | create about.html with a tiny page saying Welcome to our site, then change the heading to Our Story

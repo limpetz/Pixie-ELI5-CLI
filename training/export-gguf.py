@@ -8,12 +8,13 @@ os.environ.setdefault("UNSLOTH_CE_LOSS_N_CHUNKS", "8")
 from unsloth import FastLanguageModel
 from lora_config import OUTPUT_DIR, MAX_SEQ_LEN, LOAD_IN_4BIT
 
-# OUTPUT_DIR is relative to the project root (pixie/) — resolve so this runs from anywhere.
+# Config paths are relative to the project root (pixie/) — resolve them so
+# export-gguf.py can be run from any folder and outputs always land in the
+# same place (the GGUF must sit at <root>/pixie-7b-gguf_gguf/ for Ollama).
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if not os.path.isabs(OUTPUT_DIR):
     OUTPUT_DIR = os.path.join(ROOT, OUTPUT_DIR)
-
-OUT = "pixie-7b-gguf"
+OUT = os.path.join(ROOT, "pixie-7b-gguf")
 
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name=OUTPUT_DIR,       # the LoRA adapter dir saved by train.py

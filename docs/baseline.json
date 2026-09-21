@@ -43,5 +43,29 @@
     },
     "verdict": "Pixie-7B beats the pre-training median (53/72 vs 44/72), the reference model (44/72), and the base model in every same-run comparison (+20 checks on average). Fine-tune shipped into the CLI via /model → pixie-7b.",
     "method": "npm run eval, identical 24-task suite, 3 same-day runs per model after fixing a stale-GGUF incident: the first Ollama import had been built from the pre-fix (narration-trained) adapter; re-exporting from the fixed adapter (training/export-gguf.py) was required before scoring. Raw rows appended to training/eval-results.json (gitignored)."
+  },
+  {
+    "type": "official_baseline",
+    "label": "post-training (Pixie-7B round 2) — REGRESSION vs round 1",
+    "date": "2026-09-21",
+    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "candidate": {
+      "model": "pixie-7b (QLoRA round 2: 105 pairs, 4 epochs, final loss 0.56, LR 2.5e-4, max_seq 1792)",
+      "runs": [48, 40, 43],
+      "medianChecks": "43/72",
+      "tasksMedian": "11/24",
+      "byTierMedian": { "core": "5/7", "multi": "4/9", "hard": "1/8" },
+      "notes": "Still beats base in all 3 head-to-heads and still never narrates-instead-of-acting (avg 1.4 rounds/task). But the hard tier collapsed to 1/8 median (was 4/8): in run 3 it one-shots every hard task — single tool round, wrong or missing output — suggesting the larger dataset (longer command→save and two-edit chains, truncated system+tools prefix pushing attention toward training-time repetitions) made it more reflexive, not more capable."
+    },
+    "reference": {
+      "model": "qwen2.5-coder:7b (same-day control runs)",
+      "runs": [36, 39, 25],
+      "medianChecks": "36/72",
+      "tasksMedian": "11/24",
+      "byTierMedian": { "core": "5/7", "multi": "3/9", "hard": "2/8" },
+      "notes": "Base had a particularly bad run 3 (25/72) and a good run 2 (39/72); same high variance as before."
+    },
+    "verdict": "Round 2 beats base head-to-head (3/3) but REGRESSED against round 1 (43/72 vs 53/72 median), driven entirely by the hard tier (1/8 vs 4/8). Round-1 adapter (32 pairs, 6 epochs) remains the shipped model until a round-3 recipe (fewer epochs on the merged dataset, or round-1 data + a small hard-tier slice) proves otherwise.",
+    "method": "npm run eval, identical 24-task suite, 3 same-day runs per model. Fresh round-2 GGUF exported via training/export-gguf.py and re-imported into Ollama before scoring (export-gguf.py OUT path was fixed to always resolve to the project root after a cwd-dependent output bug put the first round-2 GGUF in training/pixie-7b-gguf_gguf/). Raw rows appended to training/eval-results.json (gitignored); logs: training/eval-post-r2.log, -r2b.log, -r2c.log."
   }
 ]

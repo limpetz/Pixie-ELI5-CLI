@@ -20,7 +20,8 @@
  *   npm run distill -- --num 10 --teacher ollama://llama3.1:8b
  *   npm run distill -- --tasks-file training/my-tasks.txt --teacher openai://gpt-4o-mini
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -42,6 +43,8 @@ const OFFSET = Math.max(0, Number(arg("offset", "0")));
 /** Sampling temperature — vary it between batches so repeated tasks still yield new traces. */
 const TEMP = Math.min(1.5, Math.max(0, Number(arg("temperature", "0.4"))));
 const KEEP = process.argv.includes("--keep");
+/** Use ONLY the tasks from --tasks-file, skipping the built-in create-only pool. */
+const ONLY = process.argv.includes("--only");
 const OUT = resolve("training/distilled.jsonl");
 const WORKSPACE = resolve("training/distill-workspace");
 
@@ -126,21 +129,202 @@ const SEED_TASKS: string[] = [
   "write menu.txt with three dinner options and prices, one per line",
 ];
 
-function loadTasks(): string[] {
-  const tasks = [...SEED_TASKS];
+interface TaskSpec {
+  /** Verifier id ("" = unverified) — see VERIFY below. Lines use "id | text". */
+  id: string;
+  text: string;
+}
+
+function loadTasks(): TaskSpec[] {
+  const fileTasks: TaskSpec[] = [];
   if (TASKS_FILE && existsSync(TASKS_FILE)) {
     for (const line of readFileSync(TASKS_FILE, "utf8").split("\n")) {
       const t = line.trim();
-      if (t && !t.startsWith("#")) tasks.push(t);
+      if (!t || t.startsWith("#")) continue;
+      const sep = t.indexOf("|");
+      fileTasks.push(
+        sep > 0
+          ? { id: t.slice(0, sep).trim(), text: t.slice(sep + 1).trim() }
+          : { id: "", text: t },
+      );
     }
   }
-  return tasks;
+  if (ONLY) {
+    if (!fileTasks.length) {
+      console.error("--only needs --tasks-file with at least one task.");
+      process.exit(1);
+    }
+    return fileTasks;
+  }
+  return [...SEED_TASKS.map((text) => ({ id: "", text })), ...fileTasks];
+}
+
+/* ── goal verification ──
+ * A trace is only worth training on if the workspace actually shows the task
+ * was achieved. Each verifier returns null on success or a problem string.
+ * NOTE: because null means success, `a(...) ?? b(...)` requires BOTH checks
+ * to pass (?? only falls through when a SUCCEEDED). For either/or, loop.
+ * Expected values are documented in training/chain-tasks.txt. */
+function fileIs(ws: string, file: string, values: string[]): string | null {
+  let content: string;
+  try {
+    content = readFileSync(join(ws, file), "utf8").trim();
+  } catch {
+    return `${file} unreadable`;
+  }
+  return values.includes(content) ? null : `${file} is "${content.slice(0, 30)}"`;
+}
+function fileContains(ws: string, file: string, needle: string): string | null {
+  let content: string;
+  try {
+    content = readFileSync(join(ws, file), "utf8");
+  } catch {
+    return `${file} unreadable`;
+  }
+  return content.includes(needle) ? null : `${file} lacks "${needle}"`;
+}
+function fileLacks(ws: string, file: string, needle: string): string | null {
+  let content: string;
+  try {
+    content = readFileSync(join(ws, file), "utf8");
+  } catch {
+    return `${file} unreadable`;
+  }
+  return content.includes(needle) ? `${file} still has "${needle}"` : null;
+}
+export const VERIFY: Record<string, (ws: string) => string | null> = {
+  count: (ws) => fileIs(ws, "count.txt", ["5"]),
+  priciest: (ws) => fileIs(ws, "priciest.txt", ["olive oil"]),
+  average: (ws) => fileIs(ws, "average.txt", ["80"]),
+  total: (ws) => fileIs(ws, "total.txt", ["6.7", "6.70", "Total: 6.70", "Total: 6.7"]),
+  letterlines: (ws) => fileIs(ws, "linecount.txt", ["5", "6"]),
+  toycount: (ws) => fileIs(ws, "toycount.txt", ["4"]),
+  temp: (ws) => fileIs(ws, "temp.txt", ["350"]),
+  calc2: (ws) => fileIs(ws, "calc2.txt", ["72"]),
+  quotient: (ws) => fileIs(ws, "quotient.txt", ["25"]),
+  today: (ws) => fileContains(ws, "today.txt", "2026"),
+  files: (ws) => fileContains(ws, "files.txt", "letter.txt"),
+  power: (ws) => fileIs(ws, "power.txt", ["1024"]),
+  // Task pools disagree on the output name (chain-tasks: linecount.txt,
+  // chain-retry: linecount2.txt) — accept either.
+  wcletter: (ws) => {
+    for (const f of ["linecount2.txt", "linecount.txt"]) {
+      if (fileIs(ws, f, ["5", "6"]) === null) return null;
+    }
+    return "neither linecount2.txt nor linecount.txt holds 5 or 6";
+  },
+  fixtwo: (ws) => fileLacks(ws, "letter-a.txt", "teh") ?? fileLacks(ws, "recipe-a.md", "suger"),
+  settingsdark: (ws) =>
+    fileContains(ws, "settings-a.ini", "theme = dark") ?? fileContains(ws, "settings-a.ini", "volume = 8"),
+  recipesugar: (ws) =>
+    fileContains(ws, "recipe-b.md", "sugar") ?? fileContains(ws, "recipe-b.md", "2 cups of flour"),
+  settingslook: (ws) =>
+    fileContains(ws, "settings-b.ini", "[look and feel]") ?? fileContains(ws, "settings-b.ini", "volume = 7"),
+  letterrecipe: (ws) => fileLacks(ws, "letter-b.txt", "teh") ?? fileContains(ws, "recipe.md", "Peel and mash"),
+  // ── round 4: command→save chains (eval tasks 15/17/24 kept failing these) ──
+  // Accept any value containing the digits, so formatting like "42" vs "Total: 42" both pass.
+  cmdsave: (ws) => fileContains(ws, "tmp-calc.txt", "42"),
+  wcletter3: (ws) => fileIs(ws, "linecount3.txt", ["5", "6"]),
+  pow2: (ws) => fileContains(ws, "pow2.txt", "128"),
+  cmdtotal: (ws) => fileContains(ws, "total-sh.txt", "6.70") ?? fileContains(ws, "total-sh.txt", "6.7"),
+  // Append target is inventory.csv (the seeded data file) — and a true append
+  // must not lose the rows that were already there.
+  csvappend: (ws) => {
+    let content: string;
+    try {
+      content = readFileSync(join(ws, "inventory.csv"), "utf8");
+    } catch {
+      return "inventory.csv unreadable";
+    }
+    if (!content.includes("cherries")) return 'inventory.csv lacks "cherries"';
+    return content.includes("bananas,6") ? null : 'inventory.csv lost "bananas,6"';
+  },
+  csvsum: (ws) => fileContains(ws, "inv2.txt", "10"),
+  // ── round 4: exact-N multi-file creation (eval tasks 8/20) ──
+  // "Exactly three files" means three files: any extra entry fails, whatever
+  // it is named (the teacher loves to sneak in an extra notes.txt/tester.txt).
+  team3: (ws) => {
+    const need = new Set(["dev.txt", "design.txt", "manager.txt"]);
+    let entries: string[];
+    try {
+      entries = readdirSync(join(ws, "team"));
+    } catch {
+      return "team/ missing";
+    }
+    for (const f of need) if (!entries.includes(f)) return `team/${f} missing`;
+    const extra = entries.filter((f) => !need.has(f));
+    return extra.length ? `team/ has extra file(s): ${extra.join(", ")}` : null;
+  },
+  shapes4: (ws) => {
+    for (const f of ["square.txt", "circle.txt", "triangle.txt", "hexagon.txt"])
+      if (!existsSync(join(ws, "shapes", f))) return `shapes/${f} missing`;
+    return null;
+  },
+  // ── round 4: two edits in one task (eval task 13) + csv edit ──
+  lettersc: (ws) => fileLacks(ws, "letter-c.txt", "teh"),
+  settingsc: (ws) => fileContains(ws, "settings-c.ini", "theme = dark") ?? fileContains(ws, "settings-c.ini", "language = fr"),
+  recipesugar2: (ws) => fileContains(ws, "recipe-c.md", "sugar") ?? fileContains(ws, "recipe-c.md", "2 cups of flour"),
+  recipesalt: (ws) =>
+    fileContains(ws, "recipe-d.md", "pinch of salt") ?? fileContains(ws, "recipe-d.md", "Mix the batter"),
+  // Two cells change (apples 4→5 AND bananas 6→9) — both required.
+  csvprice: (ws) => {
+    let content: string;
+    try {
+      content = readFileSync(join(ws, "inv2.csv"), "utf8");
+    } catch {
+      return "inv2.csv unreadable";
+    }
+    if (!content.includes("apples,5")) return 'inv2.csv lacks "apples,5"';
+    return content.includes("bananas,9") ? null : 'inv2.csv lacks "bananas,9"';
+  },
+  // ── round 4: create-then-edit same conversation (eval task 11) ──
+  // Single-file task: create contact.txt, then fix its own typo.
+  contactfix: (ws) => fileLacks(ws, "contact.txt", "favrite"),
+  aboutedit: (ws) => fileContains(ws, "about.html", "Our Story"),
+};
+
+/** Deterministic workspace restore between tasks/retries, so a half-done
+ * previous attempt can never make a later attempt's verify pass spuriously.
+ * Uses the same seeder the task files document (training/seed-workspace.py). */
+function reseedWorkspace(): void {
+  const py = resolve("training/.venv/Scripts/python.exe");
+  const seeder = resolve("training/seed-workspace.py");
+  if (existsSync(py) && existsSync(seeder)) {
+    execSync(`"${py}" "${seeder}"`, { stdio: "ignore" });
+  }
 }
 
 function isGoodTrace(reply: string): boolean {
   const t = reply.trim();
   return t.length >= 30 && !t.startsWith("Error:") && !t.includes("NEEDS_APPROVAL");
 }
+
+/** Tool rounds that happened AFTER a tool result — real read→write chaining.
+ * Two calls fired in parallel in one round don't count: that pattern teaches
+ * the model to fire blind calls, not to use tool output. */
+function countSequentialRounds(path: string): number {
+  let rounds = 0;
+  let sawResult = false;
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    let e: { type?: string };
+    try {
+      e = JSON.parse(line) as { type?: string };
+    } catch {
+      continue;
+    }
+    if (e.type === "tool_result") sawResult = true;
+    else if (e.type === "assistant_tool_calls" && sawResult) {
+      rounds++;
+      sawResult = false;
+    }
+  }
+  return rounds;
+}
+
+/** Verified tasks whose goal is pure creation (exact-N files): the teacher
+ * may legitimately fire all writes in ONE parallel round, so the
+ * sequential-chain requirement below must not apply to them. */
+const PARALLEL_OK = new Set(["team3", "shapes4"]);
 
 async function main(): Promise<void> {
   const teacher = resolveTeacher(TEACHER);
@@ -160,12 +344,20 @@ async function main(): Promise<void> {
   const seen = new Set<string>();
   if (existsSync(OUT)) {
     for (const line of readFileSync(OUT, "utf8").split("\n")) {
-      if (line.trim()) seen.add(line.slice(0, 200));
+      if (!line.trim()) continue;
+      try {
+        const p = JSON.parse(line) as { messages?: unknown };
+        if (p.messages) {
+          seen.add(createHash("sha256").update(JSON.stringify(p.messages)).digest("hex").slice(0, 40));
+        }
+      } catch {
+        // ignore malformed lines — they just can't be deduped
+      }
     }
   }
 
   const tasks = loadTasks();
-  const picked: string[] = [];
+  const picked: TaskSpec[] = [];
   for (let i = 0; i < NUM; i++) {
     picked.push(tasks[(i + OFFSET) % tasks.length]);
   }
@@ -177,39 +369,67 @@ async function main(): Promise<void> {
   let written = 0;
   let skipped = 0;
   for (let i = 0; i < picked.length; i++) {
-    const task = picked[i];
+    const { id, text: task } = picked[i];
+    const verify = id ? VERIFY[id] : undefined;
+    if (id && !verify) {
+      console.error(`\nUnknown verifier id "${id}" in the task file — fix it and rerun.`);
+      process.exit(1);
+    }
     process.stdout.write(`  [${i + 1}/${picked.length}] ${task.slice(0, 60)}… `);
-    const logger = new SessionLogger(WORKSPACE, { note: "distill", task });
-    try {
-      const result = await runTurn(cfg, [], task, logger, { autoRun: true });
-      if (!isGoodTrace(result.reply)) {
-        skipped++;
-        console.log("skipped (weak trace)");
-        continue;
+    let saved = false;
+    let problem = "";
+    // Every attempt starts from a pristine, deterministic workspace: no stale
+    // files masking laziness, no task-N fix breaking task-N+1's preconditions.
+    for (let attempt = 1; attempt <= 2 && !saved; attempt++) {
+      reseedWorkspace();
+      const logger = new SessionLogger(WORKSPACE, { note: "distill", task });
+      try {
+        const result = await runTurn(cfg, [], task, logger, { autoRun: true });
+        if (!isGoodTrace(result.reply)) {
+          problem = "weak trace";
+          continue;
+        }
+        const session = readFileSync(logger.path, "utf8");
+        const totalCalls = session.split("\n").filter((l) => l.includes('"assistant_tool_calls"')).length;
+        const seqRounds = countSequentialRounds(logger.path);
+        // Verified tasks exist to teach chaining — require a real
+        // tool→result→tool round, not two blind parallel calls.
+        if (verify && totalCalls < 2) {
+          problem = `only ${totalCalls} tool round(s)`;
+          continue;
+        }
+        if (verify && !PARALLEL_OK.has(id) && seqRounds < 1) {
+          problem = "parallel calls, no sequential chain";
+          continue;
+        }
+        if (verify) {
+          problem = verify(WORKSPACE) ?? "";
+          if (problem) continue;
+        }
+        // Rebuild the FULL conversation (tool rounds + results) from the log.
+        const exchange = extractPairs(logger.path, "distill").pop();
+        if (!exchange) {
+          problem = "no healthy exchange";
+          continue;
+        }
+        const pair = { messages: exchange.messages };
+        const key = createHash("sha256").update(JSON.stringify(pair.messages)).digest("hex").slice(0, 40);
+        if (seen.has(key)) {
+          problem = "duplicate";
+          continue;
+        }
+        seen.add(key);
+        appendFileSync(OUT, JSON.stringify(pair) + "\n", "utf8");
+        written++;
+        saved = true;
+        console.log(`ok (${totalCalls} call(s), ${seqRounds} chained${attempt > 1 ? `, attempt ${attempt}` : ""})`);
+      } catch (err) {
+        problem = err instanceof Error ? err.message : String(err);
       }
-      // Rebuild the FULL conversation (including tool-call rounds and tool
-      // results) from the session log this run just wrote — a coding agent
-      // must learn to emit tool calls, not to narrate having done things.
-      const exchange = extractPairs(logger.path, "distill").pop();
-      if (!exchange) {
-        skipped++;
-        console.log("skipped (no healthy exchange)");
-        continue;
-      }
-      const pair = { messages: exchange.messages };
-      const key = createHash("sha256").update(JSON.stringify(pair.messages)).digest("hex").slice(0, 40);
-      if (seen.has(key)) {
-        skipped++;
-        console.log("skipped (duplicate)");
-        continue;
-      }
-      seen.add(key);
-      appendFileSync(OUT, JSON.stringify(pair) + "\n", "utf8");
-      written++;
-      console.log(`ok (${result.toolRounds} tool round${result.toolRounds === 1 ? "" : "s"})`);
-    } catch (err) {
+    }
+    if (!saved) {
       skipped++;
-      console.log(`failed: ${err instanceof Error ? err.message : String(err)}`);
+      console.log(`skipped (${problem})`);
     }
   }
 

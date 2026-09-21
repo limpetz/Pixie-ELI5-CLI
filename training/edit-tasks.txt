@@ -1,0 +1,15 @@
+# Batch 4: more edit_file coverage with exact-text phrasing (batch 3 showed
+# old_text mismatches fail silently, so tasks quote the seeded strings
+# verbatim). Re-seed the workspace first (seed-workspace.py), run with --keep.
+settings.ini contains the line theme = light — use edit_file to change theme = light to theme = dark
+letter.txt contains teh twice — use edit_file to fix both teh words to the
+recipe.md contains Serves 2 people — use edit_file to change Serves 2 people to Serves 4 people
+settings.ini contains the line volume = 3 — use edit_file to change volume = 3 to volume = 8
+letter.txt contains Best wishes, Alex — use edit_file to change Best wishes, Alex to Love, Alex
+recipe.md contains the word suger — use edit_file to change suger to sugar
+settings.ini contains the line language = en — use edit_file to change language = en to language = de
+recipe.md contains 1 cup of flour — use edit_file to change 1 cup of flour to 2 cups of flour
+letter.txt contains talk soon about your visit in July — use edit_file to change July to August
+recipe.md contains Mash the bananas. — use edit_file to change Mash the bananas. to Peel and mash the bananas.
+settings.ini contains [appearance] — use edit_file to change [appearance] to [look and feel]
+recipe.md contains one egg — use edit_file to change one egg to two eggs

@@ -1,0 +1,33 @@
+# Round-3 distillation pool: multi-round tool CHAINS, with verified goals.
+# Format per line:  <verifier-id> | <task text>
+# verifier-id is checked by scripts/distill.ts after each attempt; traces
+# whose workspace does not satisfy the check are retried, then dropped.
+# v2 eval failure modes targeted: one-round-then-stop (no chaining), wrong
+# derived values (calc2.txt got "9*8", temp.txt got 375), and edit cascades
+# (task N's fix removing task N+1's typo — solved by per-task file copies).
+# Seed before the batch AND between retry rounds:
+#   training/.venv/Scripts/python.exe training/seed-workspace.py
+# --- read a seeded file, then write a derived file (expected values noted) ---
+#   stock.txt: 5 items | prices.txt: olive oil 6.80 | scores: (80+90+70)/3=80
+#   shopping: 2.50+1.20+3.00=6.70 | letter.txt: 6 lines | wishlist: 4 toys
+#   recipe.md bakes at 350 degrees
+count     | read stock.txt in this workspace, count how many items it lists, and write just that number into count.txt
+priciest  | read prices.txt, find which item costs the most, and write just that item's name into priciest.txt
+average   | read scores.txt, work out the average of the three scores, and write just the number into average.txt
+total     | add up the prices in shopping.txt and write just the total into total.txt
+letterlines | count how many lines letter.txt has and write just that number into linecount.txt
+toycount  | read wishlist.txt, count the toys in it, and write just that number into toycount.txt
+temp      | read recipe.md and write just the oven temperature number into temp.txt
+# --- run a command, then save its output ---
+calc2     | use a command to calculate 9 times 8 and save just the number into calc2.txt
+quotient  | compute 100 divided by 4 with a command and write just the answer into quotient.txt
+today     | use a command to get today's date and save it into today.txt
+files     | run a command that lists the files in this workspace, then save that list into files.txt
+power     | use a command to compute 2 to the power of 10 and save the result into power.txt
+wcletter  | use a command to count the lines in letter.txt and save just the number into linecount.txt
+# --- two edits in one task, each on its own pristine file copy ---
+fixtwo      | letter-a.txt has teh twice and recipe-a.md has suger — fix both typos using edit_file
+settingsdark | in settings-a.ini, change theme = light to theme = dark and also change volume = 3 to volume = 8
+recipesugar | in recipe-b.md, change suger to sugar and also change 1 cup of flour to 2 cups of flour
+settingslook | in settings-b.ini, change [appearance] to [look and feel] and change volume = 3 to volume = 7
+letterrecipe | in letter-b.txt, fix teh to the, and in recipe.md, change Mash the bananas. to Peel and mash the bananas.
