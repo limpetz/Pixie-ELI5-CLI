@@ -90,5 +90,28 @@
     },
     "verdict": "Round 3 REGRESSED against round 1 (40/72 vs 53/72 median) despite the lower epoch count. Core held at 5/7, hard improved over round 2 to 3/8, but multi collapsed to 2/9. Keep round 1 as the target; do not ship round 3. Next experiment should reduce the dataset to a curated hard/multi slice or restore round-1 data balance rather than adding more traces.",
     "method": "npm run eval, identical 24-task suite, 3 same-day runs per model after exporting the round-3 adapter with training/export-gguf.py and recreating Ollama pixie-7b. Logs: training/eval-r3-run1.log, -run2.log, -run3.log. Raw rows appended to training/eval-results.json (gitignored)."
+  },
+  {
+    "type": "official_baseline",
+    "label": "post-training (Pixie-7B round 4, curated slice) — best since round 1, still short",
+    "date": "2026-09-21",
+    "suite": { "tasks": 24, "checks": 72, "tiers": { "core": 7, "multi": 9, "hard": 8 } },
+    "candidate": {
+      "model": "pixie-7b (QLoRA round 4: 41 curated pairs — 38 verified hard/multi traces + 3 real sessions, 4 epochs, final loss 1.262)",
+      "runs": [43, 45, 46],
+      "medianChecks": "45/72",
+      "tasksMedian": "13/24",
+      "byTierMedian": { "core": "7/7", "multi": "3/9", "hard": "3/8" },
+      "notes": "Wins all 3 head-to-heads. Core is now perfect (7/7 twice, 6/7 once — better than round 1's 6/7 median). Hard recovered to round-1-ish (3/8, with a 4/8 run). Multi remains the bottleneck (2-3/9 vs round 1's 4/9) — the curated slice traded away the simple create/edit variety that underpins multi-tier tasks."
+    },
+    "reference": {
+      "model": "qwen2.5-coder:7b (same-run controls)",
+      "runs": [30, 27, 34],
+      "medianChecks": "30/72",
+      "tasksMedian": "9/24",
+      "notes": "Base stayed in its usual 25-39 band."
+    },
+    "verdict": "Round 4 is the best fine-tune since round 1 (45/72 median vs 43 round 2, 40 round 3) and beats base 3/3, but still REGRESSES vs round 1 (53/72) — do not ship. Core is solved; multi is the gap. Next recipe: round-1's original 32 pairs + the curated hard/multi slice (deduped) to restore multi-file variety without diluting the chain training.",
+    "method": "npm run eval, identical 24-task suite, 3 same-day runs per model. Round-4 adapter trained on training/round4-curated.jsonl (rows 81-118 of all.jsonl = verified chain/two-edit/exact-N traces + real sessions), exported via export-gguf.py, re-imported as ollama pixie-7b. Logs: training/eval-r4-run1.log, -run2.log, -run3.log; raw rows in gitignored training/eval-results.json."
   }
 ]

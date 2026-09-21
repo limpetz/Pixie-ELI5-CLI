@@ -123,11 +123,20 @@ Repo is green: `npm run typecheck` ✔, `npm run selftest` ✔ (all sections).
    → verify `ollama run pixie-7b` actually behaves differently from round 2
    before scoring.
 
-6. **Train/evaluate round 4**: the curated slice is ready. Run the normal
-   train → export → `ollama create pixie-7b` → three eval runs. The current
-   Ollama `pixie-7b` points at round 3, so restore the round-1 GGUF if available
-   before using it as the shipped CLI model. **Ship only if median beats 53/72
-   and hard tier ≥ 4/8.**
+6. **Round 4 trained and evaluated (2026-09-21)** — the curated 41-pair slice
+   (38 verified hard/multi traces + 3 real sessions), 4 epochs, final loss
+   1.262, ~41 min on the RTX 4060. Three eval runs: **43, 45, 46/72** (median
+   45) — the best fine-tune since round 1, beating base 3/3, core now perfect
+   (7/7 in two runs). Still short of round 1's 53/72, so **not shipped**;
+   the gap is entirely the multi tier (2–3/9 vs round 1's 4/9).
+   `docs/baseline.json` records the result. Ollama `pixie-7b` currently holds
+   the round-4 GGUF.
 
-7. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
+7. **Next experiment (round 5 recipe)**: merge round-1's original 32 pairs
+   with the curated hard/multi slice (dedupe against them) — restore the
+   multi-tier variety round 1 had while keeping the chain training. Then the
+   usual train → export → `ollama create pixie-7b` → 3 eval runs.
+   **Ship only if median beats 53/72 and hard tier ≥ 4/8.**
+
+8. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
    if the recipe changed materially.
