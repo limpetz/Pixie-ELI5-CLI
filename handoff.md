@@ -129,14 +129,36 @@ Repo is green: `npm run typecheck` ✔, `npm run selftest` ✔ (all sections).
    45) — the best fine-tune since round 1, beating base 3/3, core now perfect
    (7/7 in two runs). Still short of round 1's 53/72, so **not shipped**;
    the gap is entirely the multi tier (2–3/9 vs round 1's 4/9).
-   `docs/baseline.json` records the result. Ollama `pixie-7b` currently holds
-   the round-4 GGUF.
+   `docs/baseline.json` records the result.
 
-7. **Next experiment (round 5 recipe)**: merge round-1's original 32 pairs
-   with the curated hard/multi slice (dedupe against them) — restore the
-   multi-tier variety round 1 had while keeping the chain training. Then the
-   usual train → export → `ollama create pixie-7b` → 3 eval runs.
+7. **Round-1 GGUF restored (2026-09-21)** — the original round-1 GGUF had
+   been overwritten by rounds 2–4 with **no backup** (the adapter dir too).
+   Retrained round 1 from its exact recipe: `training/r1.jsonl` (the same
+   32 pairs: rows 0–28 + 3 real sessions of all.jsonl), 6 epochs, max_seq
+   1536, final loss 1.198. Exported and imported as `ollama pixie-7b` —
+   **the shipped model is live again**. Snapshots now in Ollama:
+   `pixie-7b-r1` (shipped baseline) and `pixie-7b-r4` (best challenger).
+   **Policy: after every future `ollama create pixie-7b`, run
+   `ollama cp pixie-7b pixie-7b-r<N>` before scoring.**
+
+8. **Round-5 multi-tier pool built (2026-09-21)** — `training/multi5-tasks.txt`
+   targets the seven multi shapes r4 failed in all 3 runs: flat exact-N
+   files (colors3/snacks2), read→compute→save (double/half), extract-line
+   (titleline/lastline), unnamed-typo find-and-fix (findfix/findfix2),
+   list-append (keepadd), JSON edit (jsonedit), read-3-files→pick (pickfile).
+   Verifiers + scaffolds in distill.ts, seeds in seed-workspace.py, smoke
+   fixtures/traps in verify-smoke.ts (which caught two more verifier bugs:
+   a third ??-on-null inversion in `half`, and jsonedit not requiring the
+   untouched `volume` field to survive). All smoke tests pass.
+
+9. **Next steps, in order**: (a) distill the multi5 pool with
+   `npm run distill -- --only --tasks-file training/multi5-tasks.txt --num 12
+   --teacher ollama://qwen2.5-coder:7b --temperature 0.7`; (b) build the
+   round-5 dataset = r1.jsonl + verified multi5 traces (+ optionally the r4
+   curated slice), deduped via the exported `dedupe()` helper (use a
+   project-local temp path — `/tmp` breaks on Windows node); (c) train,
+   export, `ollama create pixie-7b` **then `ollama cp` snapshot**, 3 evals.
    **Ship only if median beats 53/72 and hard tier ≥ 4/8.**
 
-8. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
+10. Optionally regenerate `training/TRAINING.md` via `npm run prepare-training`
    if the recipe changed materially.
