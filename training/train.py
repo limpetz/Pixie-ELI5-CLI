@@ -1,5 +1,8 @@
 # Pixie-7B QLoRA fine-tune — ready to run on an 8 GB GPU (RTX 4060).
-# Reads lora_config.py for settings. Dataset: training/all.jsonl (65 pairs).
+# Reads lora_config.py for settings. Trains from the base model by default;
+# when BASE_ADAPTER is set, CONTINUES training from an existing LoRA adapter
+# instead (round-7+ policy: five from-scratch retrains never beat round 1 —
+# see handoff.md).
 import json
 import os
 
@@ -14,7 +17,7 @@ os.environ.setdefault("UNSLOTH_CE_LOSS_N_CHUNKS", "8")
 from lora_config import (
     BASE_MODEL, DATASET_FILE, OUTPUT_DIR, LORA_R, LORA_ALPHA, LORA_DROPOUT,
     TARGET_MODULES, EPOCHS, BATCH_SIZE, GRAD_ACCUM, LEARNING_RATE,
-    MAX_SEQ_LEN, LOAD_IN_4BIT, SEED,
+    MAX_SEQ_LEN, LOAD_IN_4BIT, SEED, BASE_ADAPTER,
 )
 
 # Config paths are relative to the project root (pixie/) — resolve them so
@@ -31,7 +34,43 @@ from datasets import Dataset
 from trl import SFTTrainer
 from transformers import TrainingArguments
 
-def main():
+def load_model():
+    """Fresh LoRA on the base model, or continuation from BASE_ADAPTER.
+
+    Continuation path: unsloth reloads the saved adapter together with its
+    4-bit base via from_pretrained(adapter_dir). Do NOT call get_peft_model
+    again here — that would stack a *fresh random* LoRA on top of the loaded
+    weights and silently fake the continuation. The saved adapter's config
+    (r16/alpha32/dropout .05/7 proj targets) matches lora_config.py; if you
+    change those values, retrain from base instead.
+    """
+    if BASE_ADAPTER:
+        adapter_path = rel(BASE_ADAPTER)
+        print(f"Continuing from existing adapter: {adapter_path}")
+        model, tokenizer = FastLanguageModel.from_pretrained(
+            model_name=adapter_path,
+            max_seq_length=MAX_SEQ_LEN,
+            load_in_4bit=LOAD_IN_4BIT,
+        )
+        # Adapters can come back frozen (peft saves inference_mode=true) —
+        # re-enable every lora_* parameter and fail fast if none exist (a
+        # silently-frozen run would waste hours and poison the eval).
+        trainable = 0
+        for name, param in model.named_parameters():
+            if "lora_" in name:
+                param.requires_grad = True
+                trainable += param.numel()
+        if trainable == 0:
+            raise RuntimeError("BASE_ADAPTER loaded but no lora_* parameters found — aborting")
+        # Fresh-LoRA guard: a just-initialized adapter has near-zero lora_A
+        # weights. Catching it here beats discovering it in the eval scores.
+        import torch
+        norms = [p.norm().item() for n, p in model.named_parameters() if n.endswith("lora_A.default") or n.endswith("lora_A.weight")]
+        if norms and sum(norms) / len(norms) < 1e-3:
+            raise RuntimeError("Loaded adapter looks freshly initialized (lora_A ~ 0) — wrong checkpoint?")
+        print(f"Continued LoRA trainable params: {trainable / 1e6:.1f}M")
+        return model, tokenizer
+
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=BASE_MODEL,
         max_seq_length=MAX_SEQ_LEN,
@@ -47,6 +86,10 @@ def main():
         use_gradient_checkpointing="unsloth",
         random_state=SEED,
     )
+    return model, tokenizer
+
+def main():
+    model, tokenizer = load_model()
 
     rows = [json.loads(l) for l in open(DATASET_FILE, encoding="utf-8") if l.strip()]
     print(f"Training on {len(rows)} pairs from {DATASET_FILE}")
