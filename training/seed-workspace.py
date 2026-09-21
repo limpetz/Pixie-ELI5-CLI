@@ -40,6 +40,10 @@ FILES = {
     "wishlist.txt": "robot dog\ntoy truck\npuzzle\nstorybook\n",
     # --- data files for the round-4 chain2 tasks ---
     "inventory.csv": "item,amount\napples,4\nbananas,6\n",
+    # inv2.csv is a pristine COPY of inventory.csv so the csvprice two-edit
+    # task edits an existing file (the teacher hallucinates a nonexistent
+    # copy_file tool when asked to copy first — see distill-chain2e.log).
+    "inv2.csv": "item,amount\napples,4\nbananas,6\n",
 }
 
 # Per-task copies of the flaw files so every two-edit task starts pristine —
@@ -63,7 +67,7 @@ for derived in (
     "total-sh.txt", "inv.txt", "inv2.txt",
     # round-4 two-edit targets and multi-file shapes
     "letter-c.txt", "settings-c.ini", "recipe-c.md", "recipe-d.md",
-    "inv2.csv", "contact.txt", "contact-b.txt", "about.html",
+    "contact.txt", "contact-b.txt", "about.html",
     # round-4 exact-count folder shapes (a stale full folder would break them)
     os.path.join("team", "dev.txt"), os.path.join("team", "design.txt"),
     os.path.join("team", "manager.txt"), os.path.join("team", "tester.txt"),

@@ -1,6 +1,6 @@
 # Pixie — Session Handoff
 
-*Written 2026-09-21 after commit `9af9896`. Read this first when resuming.*
+*Written 2026-09-21 after dataset curation. Read this first when resuming.*
 
 ## What Pixie is
 
@@ -82,9 +82,9 @@ Repo is green: `npm run typecheck` ✔, `npm run selftest` ✔ (all sections).
 - Training venv: `training/.venv/Scripts/python.exe` (exists; run
   `training/train.py` per `training/TRAINING.md` — QLoRA on a local GPU,
   ~3.7h for round-2's 4 epochs on 105 pairs).
-- Gitignored (machine-local, do not commit): `training/all.jsonl` (105 pairs
-  = 102 distilled + 3 real sessions), `distilled.jsonl`, `pixie-7b-lora/`
-  (current adapter = round 2), eval logs/results, `*.gguf`.
+- Gitignored (machine-local, do not commit): `training/all.jsonl` (122 pairs
+  = 119 verified distilled + 3 real sessions), `distilled.jsonl`,
+  `pixie-7b-lora/` (current adapter = round 2), eval logs/results, `*.gguf`.
 - Untracked heavy dirs: `pixie-7b-gguf/` (round-2 safetensors),
   `pixie-7b-gguf_gguf/` (Modelfile for `ollama create pixie-7b`),
   `unsloth_compiled_cache/`. Leave untracked; `unsloth_compiled_cache/` could
@@ -100,17 +100,16 @@ Repo is green: `npm run typecheck` ✔, `npm run selftest` ✔ (all sections).
    Expect skips — that's the verifier working. Retry skips with
    `--offset`/`--temperature` variations. Then `npx tsx scripts/audit-traces.ts 6`.
 
-2. **Rebuild the merged dataset** — `training/all.jsonl` is the concat of
-   `distilled.jsonl` + `dataset-real.jsonl`; refresh it after distilling
-   (check `scripts/build-dataset.ts` / how all.jsonl was produced last time)
-   and note the pair count in `training/lora_config.py`.
+2. **Dataset rebuilt and validated (2026-09-21)** — merged `distilled.jsonl`
+   + `dataset-real.jsonl` with the exported `dedupe()` helper: 122 input/output
+   rows (119 verified distilled + 3 real; no exact duplicates). Validation:
+   every row has tool calls, no tool result indicates failure, and every row
+   ends with an assistant response.
 
-3. **Train round 3 with the anti-reflexivity recipe** (from the baseline
-   verdict): round-1 data volume (32 pairs) + a small hard-tier slice, or the
-   merged dataset with **fewer epochs**. Adjust `EPOCHS` in
-   `training/lora_config.py` (round 1 = 6 epochs/32 pairs worked; round 2 =
-   4 epochs/105 pairs over-fit into reflexes). Run `training/train.py`,
-   watch final loss (round 1: 1.189; round 2: 0.56 — suspiciously low).
+3. **Train round 3 with the anti-reflexivity recipe** — `training/lora_config.py`
+   now uses the merged 122-pair dataset and **2 epochs**. Round 1 (32 pairs,
+   6 epochs) worked; round 2 (105 pairs, 4 epochs) over-fit into reflexes.
+   Watch final loss (round 1: 1.189; round 2: 0.56 — suspiciously low).
 
 4. **Export + import**: `training/export-gguf.py` (writes to project-root
    `pixie-7b-gguf/`) → `ollama create pixie-7b -f pixie-7b-gguf_gguf/Modelfile`

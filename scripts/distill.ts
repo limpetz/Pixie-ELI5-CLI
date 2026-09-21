@@ -326,6 +326,31 @@ function countSequentialRounds(path: string): number {
  * sequential-chain requirement below must not apply to them. */
 const PARALLEL_OK = new Set(["team3", "shapes4"]);
 
+/** Strong teachers one-shot these tasks (one write_file with the final
+ * content) — efficient, but a one-shot trace teaches the student nothing
+ * about chaining, so the attempt-1 run is discarded. On attempt 2 we append
+ * explicit steps to the task text; the resulting trace is a real
+ * tool→result→tool chain and is what gets kept. Keys are pool ids. */
+const SCAFFOLD: Record<string, string> = {
+  cmdsave: " Work step by step: (1) run the command with run_command, (2) write just its output into tmp-calc.txt with write_file, (3) read the file back to check it, then give your summary.",
+  wcletter3: " Work step by step: (1) run the line-count command with run_command, (2) write just that number into linecount3.txt with write_file, (3) read the file back to check it, then give your summary.",
+  pow2: " Work step by step: (1) run the command with run_command, (2) write just its output into pow2.txt with write_file, (3) read the file back to check it, then give your summary.",
+  cmdtotal: " Work step by step: (1) run the command that adds the prices, (2) write just the total into total-sh.txt with write_file, (3) read the file back to check it, then give your summary.",
+  csvsum: " Work step by step: (1) run the command that adds the amounts, (2) write just the total into inv2.txt with write_file, (3) read the file back to check it, then give your summary.",
+  csvappend: " Work step by step: (1) run the append command with run_command, (2) read inventory.csv back to check the new line is there AND the old lines are intact, then give your summary.",
+  settingsc: " Work step by step: (1) read settings-c.ini, (2) make the theme edit with edit_file, (3) make the language edit with edit_file, (4) read the file back and give your summary.",
+  recipesugar2: " Work step by step: (1) read recipe-c.md, (2) fix the suger typo with edit_file, (3) change the flour amount with edit_file, (4) read the file back and give your summary.",
+  recipesalt: " Work step by step: (1) read recipe-d.md, (2) add the salt line with edit_file, (3) rewrite the mixing line with edit_file, (4) read the file back and give your summary.",
+  csvprice: " Work step by step: (1) read inv2.csv, (2) change the apples amount with edit_file, (3) change the bananas amount with edit_file, (4) read the file back and give your summary.",
+  contactfix: " Work step by step: (1) create contact.txt with write_file, (2) read it back, (3) fix the typo with edit_file, (4) read the file again and give your summary.",
+  aboutedit: " Work step by step: (1) create about.html with write_file, (2) read it back, (3) change the heading with edit_file, (4) read the file again and give your summary.",
+  team3: " Work step by step: (1) create the team folder's first file, (2) the second, (3) the third — counting as you go so there are exactly three — then list the folder and give your summary.",
+  shapes4: " Work step by step: (1) create the shapes folder's first file, (2) the second, (3) the third, (4) the fourth — counting as you go so there are exactly four — then list the folder and give your summary.",
+};
+/** Fallback for verified ids not in SCAFFOLD (e.g. chain-tasks pool ids). */
+const DEFAULT_SCAFFOLD =
+  " Work step by step: first look at the file(s) you need, then make the change or run the command as its own step, then double-check the result before you summarize.";
+
 async function main(): Promise<void> {
   const teacher = resolveTeacher(TEACHER);
   const cfg: PixieConfig = {
@@ -383,8 +408,11 @@ async function main(): Promise<void> {
     for (let attempt = 1; attempt <= 2 && !saved; attempt++) {
       reseedWorkspace();
       const logger = new SessionLogger(WORKSPACE, { note: "distill", task });
+      // Attempt 2 gets a step scaffold for verified tasks: a one-shot trace
+      // can't pass the chain gate anyway, so use the retry to elicit a chain.
+      const taskText = attempt === 1 || !verify ? task : task + (SCAFFOLD[id] ?? DEFAULT_SCAFFOLD);
       try {
-        const result = await runTurn(cfg, [], task, logger, { autoRun: true });
+        const result = await runTurn(cfg, [], taskText, logger, { autoRun: true });
         if (!isGoodTrace(result.reply)) {
           problem = "weak trace";
           continue;
@@ -394,8 +422,12 @@ async function main(): Promise<void> {
         const seqRounds = countSequentialRounds(logger.path);
         // Verified tasks exist to teach chaining — require a real
         // tool→result→tool round, not two blind parallel calls.
-        if (verify && totalCalls < 2) {
-          problem = `only ${totalCalls} tool round(s)`;
+        // Verified tasks exist to teach chaining — require a real
+        // tool→result→tool round, not two blind parallel calls. PARALLEL_OK
+        // tasks (exact-N creation) are exempt: parallel writes are their
+        // legitimate shape, and the verifier + exact file-count is the gate.
+        if (verify && !PARALLEL_OK.has(id) && totalCalls < 2) {
+          problem = attempt > 1 ? `one-shot even with scaffold` : `only ${totalCalls} tool round(s)`;
           continue;
         }
         if (verify && !PARALLEL_OK.has(id) && seqRounds < 1) {
