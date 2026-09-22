@@ -1,6 +1,6 @@
 # Pixie — Session Handoff
 
-*Written 2026-09-22 after round 7 (continuation) was also refuted — every recipe hypothesis is now closed. Read this first when resuming.*
+*Written 2026-09-22 after round 7 (continuation) was refuted and option-B data forensics was COMPLETED — the missing ingredient is identified (see Next steps). Read this first when resuming.*
 
 ## What Pixie is
 
@@ -58,16 +58,29 @@ Four hypotheses were tested and **all refuted**:
 
 **Conclusion: the score is a property of r1's original 32 pairs.** Only the
 two runs trained on them reach 52–54 — every derived dataset scores 36–46
-from scratch (r2–r6) AND via gentle continuation from r1's own weights (r7).
-The multi tier (r1: 6/9) is what every derivative breaks. Remaining suspects:
-(a) content mix of r1's pairs (task variety, summary style, single-step
-share), (b) rendering/provenance differences vs today's build path,
-(c) unsloth/env drift vs the original r1 session (env now pinned:
-`training/requirements-lock.txt`).
+from scratch (r2–r6) AND via gentle continuation from r1's own weights (r7).The multi tier (r1: 6/9) is what every derivative breaks.
 
-**Policy going forward: no more training until data forensics (option B
-below) identifies what r1's pairs have that the derived sets lack.** When
-training resumes, `train.py`'s `BASE_ADAPTER` continuation path is available.
+**Forensics verdict (2026-09-22, option B executed — full entry in
+`docs/baseline.json`, type `data_forensics`):** rendering/provenance and the
+env are CLEAN (schemas byte-match `TOOL_SCHEMAS`, r1's embedded system prompt
+byte-matches today's `BEGINNER_SYSTEM_PROMPT`, no truncation except 1–2
+derivative rows at 1589 tokens — suspects (b) and (c) eliminated). The driver
+is **(a) content mix**: r1 is 32 short-prompt, single-call `write_file`
+pairs (zero `edit_file`/`read_file`/`run_command`, avg 1.06 calls/row,
+21/32 multiline full-file writes, 136-char summaries); derivatives are
+2–5-call chains (avg 1.86–3.19) heavy on `edit_file`/`read_file`, and the
+model imitates the *shape* without the exact-match skill — failing exactly
+the modify-existing-content tasks (eval multi #12 append, #13 JSON edit,
+#15 precision, #16 exact copy) that r1 passes by rewriting the FULL file
+via `write_file`.
+
+**Policy going forward: never put `edit_file` demonstrations in training
+data for this 7B. Teach modify-tasks as read → `write_file`(FULL new
+content) — r1's own strategy. New synthetic pairs must copy r1's style:
+short prompts (~66 chars), single call per row, full-file content,
+terse summaries.** `train.py`'s `BASE_ADAPTER` continuation path stays
+available but r7 showed continuation erodes r1 — prefer from-scratch on
+an r1-style set.
 
 ## What this project changed, in order (recent commits: `dd8887c` continuation trainer + env lock; then the round-7 result commit)
 
@@ -140,27 +153,31 @@ backs the r4 adapter.
 - Run `npm run typecheck`, `npm run selftest`, `npx tsx scripts/verify-smoke.ts`
   before committing; all green as of this writing.
 
-## Next steps — three options, in recommended order
+## Next steps
 
-**A. Round-7 continuation — EXECUTED (2026-09-22), refuted.** See item 11:
-45/72 with multi collapsed to 2/9, even at LR 2.5e-5 resuming r1's own
-weights. The `BASE_ADAPTER` path stays in `train.py` (with its guards) for
-future use, but no recipe direction survives: data shape, stack, union, and
-continuation are all refuted.
+**A. Round-7 continuation — EXECUTED (2026-09-22), refuted.** 45/72 with
+multi collapsed to 2/9, even at LR 2.5e-5 resuming r1's own weights. The
+`BASE_ADAPTER` path stays in `train.py` (with its guards) but is not the
+route back to 52+: r7 proved gentle continuation still erodes multi.
 
-**B. Data forensics on r1's 32 pairs (next; no training needed).** The only
-two 52-54 models were trained on exactly `training/r1.jsonl`. Diff it
-against every derived dataset: (1) render r1 pairs and distilled pairs
-through the current chat template (same code path as train.py) and compare
-system prompts, tool-schema blocks, and message ordering; (2) compare
-content mix — task variety, final-summary style, share of single-step
-create/edit tasks. Whatever r1 has that the others lack is the missing
-ingredient; re-derive new traces to match it instead of adding more chains.
+**B. Data forensics — EXECUTED (2026-09-22), verdict recorded.** Render
+provenance is clean (suspects (b)/(c) eliminated); the driver is r1's
+narrow write-only single-call curriculum. Full findings: `docs/baseline.json`
+entry `data_forensics` (2026-09-22), plus the render-forensics script kept
+at `training/render_forensics.py` (re-run anytime: `./.venv/Scripts/python.exe
+render_forensics.py` from `training/`). Option C is moot — provenance is
+not the problem.
 
-**C. If forensics implicates rendering/provenance:** rebuild r1's data
-through the current build path and train its exact recipe (~8 min) — if the
-rebuild scores ~36-46, the regression lives in how data is built today; if
-~52, the original pair files themselves carry the score.
+**C. Round 8 — NEXT: synthesize r1-style coverage, train r1's recipe.**
+Build ~10–15 new pairs in r1's exact style (short prompt, ONE tool call,
+FULL-file `write_file` content, terse summary) covering the chronically
+failed shapes — append-to-list (#12), JSON edit (#13), read-transform-write
+(#15), exact one-line copy (#16) — all as read → write_file(full content),
+never `edit_file`. Concat with r1's 32 pairs (~45 total), train 6 epochs /
+max_seq 1536 from base (~2 min/step), then standard export →
+`ollama create` → `ollama cp pixie-7b pixie-7b-r8` → eval ×3. Success bar:
+multi ≥ 6/9 with core ≥ 6/7. If it works, codify the no-`edit_file` rule
+in `scripts/distill.ts` (rewrite distilled traces to read→write form).
 
 Regardless of path: any new eval result goes into `docs/baseline.json` +
 this file, and the `pixie-7b` tag must end the session pointing at the best

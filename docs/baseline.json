@@ -347,5 +347,21 @@
     },
     "verdict": "Continuation does NOT rescue the gap: 45/72 median — ties r4/r5, well short of r1's 52-54 — and multi is at 2/9. This refutes the last cheap recipe hypothesis: data shape (r4/r5), training stack (r6), and now adapter provenance via continuation (r7) all fail. Only the two runs trained on r1's original 32 pairs reach 52-54. Round 1 stays shipped; the multi gap points to something specific about r1's original data that none of the derived datasets reproduce — diff r1.jsonl against the derived pairs (rendered text + content mix) before any further training.",
     "method": "npm run eval, identical 24-task suite, 3 same-day runs per model. Round-7 recipe: the r1-retrain adapter was recovered by retraining r1.jsonl exactly (loss 1.197 vs 1.198 for the previous r1-retrain) and saved durably to training/pixie-7b-lora-r1redo (r6 adapter backed up first); train.py gained a BASE_ADAPTER continuation path (no second get_peft_model; frozen/fresh-init guards). Exported via export-gguf.py, imported as ollama pixie-7b, snapshot pixie-7b-r7 taken BEFORE scoring. Logs: training/eval-r7-run1..3.log; raw rows in gitignored training/eval-results.json."
+  },
+  {
+    "type": "data_forensics",
+    "label": "Option B executed: r1.jsonl diffed against all derived sets (render + content mix) — no training",
+    "date": "2026-09-22",
+    "findings": [
+      "Render/provenance is CLEAN: training/tool-schemas.json byte-identical to src TOOL_SCHEMAS; the system prompt embedded in r1 pairs byte-identical to today's BEGINNER_SYSTEM_PROMPT (uniform across all 32); no message-ordering or role anomalies; nothing renders over 1536 tokens except 1-2 derivative rows (1589 max) — truncation can only ever have mattered to r6.",
+      "Tool mix: r1 = 32 write_file + 2 list_files, ZERO read_file/edit_file/run_command. Derivatives: read_file 34-52, edit_file 17-42, run_command 11.",
+      "Chain depth: r1 = 30/32 single tool call (avg 1.06). Derivatives avg 1.86-3.19 calls/row.",
+      "Writes: r1 = 21/32 multiline full-file content. Curated/r7 = 7/43 and 7/57 multiline (mostly single-line appends/snippets).",
+      "Style: r1 prompts avg 66 chars, summaries avg 136 chars, mixed */- bullets; curated/r7 prompts 151-163 chars, summaries ~296 chars, uniform - bullets.",
+      "Eval cross-ref (multi tier): r1 passes 8,9,10,12,13,16; derivatives consistently FAIL 12 (append to list — they append and lose existing lines) and 13 (JSON edit — edit_file old_text misses) and mostly 15 (read-transform-write precision); r5/r7 additionally fail 16 (exact one-line copy). These are precisely the modify-existing-content and exact-extraction tasks.",
+      "Irony: derivative edit_file demonstrations are themselves correct (short old_text/new_text), yet models trained on them fail edit-style tasks — while r1, never shown edit_file, solves edits by read -> write_file the FULL new content, which cannot lose untouched fields and passes strict verifiers."
+    ],
+    "conclusion": "r1's score is carried by its narrow, redundant curriculum: short prompts, single whole-file write_file completions, precise full content. Derived sets teach edit_file/chain SHAPES the 7B imitates without the exact-match skill, breaking the very tasks they were meant to fix. Winning recipe = many small full-file writes, NOT one exemplar per shape.",
+    "next": "Round 8 candidate: r1's 32 pairs + ~10-15 synth pairs in r1's own style that cover eval shapes via READ -> write_file(FULL content) (never edit_file), keeping 66-char-style prompts and 136-char summaries. Train r1 recipe (6ep/1536, ~2 min/step). If multi recovers without core loss, edit_file demonstrations are banned from training data."
   }
 ]
