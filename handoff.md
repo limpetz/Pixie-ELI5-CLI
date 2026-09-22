@@ -1,6 +1,6 @@
 # Pixie — Session Handoff
 
-*Written 2026-09-22 after round 9 arm B (continuation from the r1redo adapter on 15 r1-CONVENTION synth rows — r8's scenarios with all five style-drift vectors fixed) scored **52/72 median — the first derivative ever to reach r1's 52–54 band, multi 4/9** — but missed the success bar (multi ≥ 6/9). Arm A (from-scratch on 32 r1 + 5 exact eval-mirror rows, `training/round9-32plus5.jsonl`) is built but untrained. Read this first when resuming.*
+*Written 2026-09-22 after round 9 arm A (from-scratch on 32 r1 + 5 exact eval-mirror rows) scored **42/72 median, multi 2/9 — second-worst derivative round** and the last pre-registered experiment. **Round 1 is declared TERMINAL for this 7B** (the pre-registered decision rule from next-step E). Read this first when resuming.*
 
 ## What Pixie is
 
@@ -36,6 +36,7 @@ Run that first thing in any new session if you doubt the local model.
 | round 7 | 53 chain pairs, **continued FROM the r1 adapter** | 2ep @ LR 2.5e-5 / 1536 | 45/44/46 | 45 | 6/2/4 |
 | round 8 | 47 = **r1's 32 verbatim** + 15 r1-style synth (read→write_file FULL) | r1's exact recipe, from scratch | 46/45/47 | 46 | 5/3/4 |
 | round 9B | 15 r1-convention synth (r8's tasks, style rebuilt to r1's audit) | **continued FROM the r1redo adapter**, 2ep @ LR 2.5e-5 / 1536 | 53/52/44 | **52 (best derivative)** | 7/4/4 |
+| round 9A | 37 = **r1's 32 verbatim** + 5 exact eval-mirror synth rows | r1's exact recipe, from scratch | 43/42/42 | 42 | 5/2/4 |
 
 Eval = 24-task suite (7 core / 9 multi / 8 hard), 72 checks, 3 runs per model,
 head-to-head A/B (`npm run eval`). Raw rows append to
@@ -69,7 +70,13 @@ bullets, 4 summary shapes, ~136-char summaries) plus continuation from the
 r1redo adapter — is the partial exception: 52/72 median, multi 3–5/9, core
 7/7 twice. It entered r1's band without reproducing r1's multi skill or
 tightness (run 3: 44). The multi tier (r1: 6/9) is still what every
-deviation fails to reach at the bar (≥ 6/9).
+deviation fails to reach at the bar (≥ 6/9). **Round 9A closed the
+investigation: even r1's own 32 pairs plus ONLY the 5 exact eval-mirror
+rows (the maximal-convention, minimal-dilution set) scored 42/72 with
+multi 2/9 — below plain r8 (46) — so dilution sensitivity is not even
+monotone in synth count, and the multi skill lives in something about the
+exact-32 training that no data description captures. Round 1 is terminal
+for this 7B.**
 
 **Forensics verdict (2026-09-22, option B executed — full entry in
 `docs/baseline.json`, type `data_forensics`):** rendering/provenance and the
@@ -137,10 +144,17 @@ an r1-style set.
    Great-preamble, terse ~136-char summaries, edit_file banned). Every trace
    is replayed through the REAL `executeTool` and scored with the eval's own
    `runChecks` at build time; the builder's `validate()` enforces the
-   convention contract (fails loudly on drift). Emits
-   `training/round9-synth15.jsonl` (15 rows, arm B) and
-   `training/round9-32plus5.jsonl` (32 r1 verbatim + 5 exact eval-mirror
-   rows, arm A — built, untrained).
+   convention contract (fails loudly on drift).Emits
+`training/round9-synth15.jsonl` (15 rows, arm B) and
+`training/round9-32plus5.jsonl` (32 r1 verbatim + 5 exact eval-mirror rows,
+arm A — now trained and scored).
+9. **Round-9 arm A result + terminal decision (2026-09-22)**: from-scratch
+   on `round9-32plus5.jsonl` (37 pairs) at r1's exact recipe (6ep / 2.5e-4 /
+   1536), train_loss 0.8047. Scored 43/42/42 → **median 42/72, multi 1–2/9**
+   — second-worst round ever, below r8 (46) and r9B (52). Even 5
+   convention-perfect rows added to r1's own 32 erase the multi skill. Per
+   the pre-registered rule: **round 1 is terminal for this 7B — stop
+   adapter iterations on this base model.**
 
 ### The GGUF-loss incident (do not repeat)
 
@@ -151,18 +165,20 @@ original. **Policy: after every `ollama create pixie-7b`, immediately run
 `ollama cp pixie-7b pixie-7b-r<N>` BEFORE scoring.** Current snapshots:
 `pixie-7b-r1` (shipped), `-r4`, `-r5`, `-r6`, `-r7`. The `-r4` copy in Ollama also
 backs the r4 adapter. Round-8 copies: `pixie-7b-r8` in Ollama and
-`training/pixie-7b-lora-r8` on disk (46/72). Round-9 copies: `pixie-7b-r9b`
-in Ollama and `training/pixie-7b-lora-r9b` on disk (best derivative, 52/72
-median, not shipped).
+`training/pixie-7b-lora-r8` on disk (46/72).Round-9 copies: `pixie-7b-r9b` in Ollama and
+`training/pixie-7b-lora-r9b` on disk (best derivative, 52/72
+median, not shipped). Round-9A copies: `pixie-7b-r9a` in Ollama and
+`training/pixie-7b-lora-r9a` on disk (42/72, not shipped).
 
 ## Environment facts
 
 - **Ollama running** (`localhost:11434`): `pixie-7b` = `pixie-7b-r1` (shipped,
   verified), `qwen2.5-coder:7b` (distill teacher), `llama3.1:8b`, `qwen2.5-coder:1.5b-base`, `nomic-embed-text`.
-- **Adapter dirs**: `training/pixie-7b-lora/` = round-9B adapter (latest run
-  always overwrites this). Durable copies: `pixie-7b-lora-r1redo` (r1 recipe
-  retrained, loss 1.197), `pixie-7b-lora-r4`, `pixie-7b-lora-r6`,
-  `pixie-7b-lora-r7`, `pixie-7b-lora-r9b`. They are whitelisted in .gitignore
+- **Adapter dirs**: every round now trains to its own `OUTPUT_DIR`, so
+  `training/pixie-7b-lora/` is NOT "the latest" — it currently holds the
+  **round-8** adapter (sha-verified 2026-09-22); treat it as stale.
+  Per-round copies: `pixie-7b-lora-r1redo` (r1 recipe retrained, loss 1.197),
+  `pixie-7b-lora-r4`, `-r6`, `-r7`, `-r8`, `-r9b`, `-r9a` (latest). They are whitelisted in .gitignore
   (`!training/*-lora-*`) but deliberately NOT committed (~160 MB each) —
   they exist only on this machine; the Ollama GGUF snapshots are the backup
   of record.
@@ -223,14 +239,31 @@ directional effect (46 → 52 vs r8) but does not reproduce r1. Full entry:
 (`5c4feb1fdbb3`) after scoring, probe 4/4. Snapshot kept: `pixie-7b-r9b`,
 adapter `training/pixie-7b-lora-r9b`.
 
-**E. Round 9 arm A — built, UNTRAINED (the remaining cheap experiment).**
-`training/round9-32plus5.jsonl` = r1's 32 verbatim + only the 5 exact
-eval-mirror synth rows (#11/#12/#13/#15/#16), from scratch at r1's full
-recipe (6ep / 2.5e-4 / 1536): the maximal-convention, minimal-dilution
-variant. To run: set `lora_config.py` DATASET_FILE=round9-32plus5.jsonl,
-BASE_ADAPTER=None, EPOCHS=6, LEARNING_RATE=2.5e-4; train → export →
-`ollama cp` snapshot FIRST → score 3 runs. If arm A also misses the bar,
-accept r1 as terminal for this 7B and stop adapter iterations.
+**E. Round 9 arm A — EXECUTED (2026-09-22), REFUTED; round 1 declared
+TERMINAL.** From-scratch on `round9-32plus5.jsonl` (r1's 32 verbatim + the
+5 exact eval-mirror rows #11/#12/#13/#15/#16) at r1's full recipe (6ep /
+2.5e-4 / 1536, train_loss 0.8047, 18 steps / 62 min). Result: 43/42/42 →
+**median 42/72, core 5/7/5, multi 1/2/2, hard 4/4/4** — second-worst
+derivative round, BELOW plain r8 (46) and r9B (52). The 5 mirror rows did
+not fix the modify shapes they mirror (#12 append, #13 JSON edit, #15
+read-transform all still fail), and core lost #3 (rainbow 7 lines) and #6
+(continents) in every run. Adding even 5 convention-perfect rows to r1's
+own 32 erases the multi skill; dilution sensitivity is not monotone.
+Per the pre-registered decision rule: **round 1 is terminal for this 7B —
+stop adapter iterations on this base model.** Snapshot `pixie-7b-r9a` +
+adapter `training/pixie-7b-lora-r9a` kept; `pixie-7b` tag restored to r1
+(`5c4feb1fdbb3`) after scoring, probe 4/4. Full entry: `docs/baseline.json`
+(round 9A).
+
+**F. Where future gains could come from (NOT more 7B QLoRA rounds on this
+data).** In rough order of expected value: (1) a larger base model (14B
+class) run through the same distill→QLoRA→GGUF pipeline — the multi skill
+may simply need capacity; (2) provenance archaeology on the ORIGINAL r1
+session's non-content state (exact chat template/tokenizer artifacts), if
+it ever becomes cheap; (3) scaffold improvements in `src/` so eval
+performance depends less on tiny-model skills. Do not run further
+same-recipe 7B rounds on variants of this dataset — nine rounds say the
+multi skill is not recoverable that way.
 
 Regardless of path: any new eval result goes into `docs/baseline.json` +
 this file, and the `pixie-7b` tag must end the session pointing at the best
