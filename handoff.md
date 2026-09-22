@@ -1,6 +1,6 @@
 # Pixie — Session Handoff
 
-*Written 2026-09-22 after round 7 (continuation) was refuted and option-B data forensics was COMPLETED — the missing ingredient is identified (see Next steps). Read this first when resuming.*
+*Written 2026-09-22 after round 8 (r1's pairs + r1-style synth covering the failed shapes) was REFUTED — multi stayed 2-3/9 even when training on r1's own 32 pairs verbatim plus 15 same-style read→write_file synth pairs. Read this first when resuming.*
 
 ## What Pixie is
 
@@ -34,6 +34,7 @@ Run that first thing in any new session if you doubt the local model.
 | round 5 | 82 union (r1+curated+multi5) | 3ep / 1792 | 46/45/46 | 46 | 5/3/3 |
 | round 6 | same 82 union | 6ep / 1536 | 44/34/36 | **36 (worst)** | 4/3/2 |
 | round 7 | 53 chain pairs, **continued FROM the r1 adapter** | 2ep @ LR 2.5e-5 / 1536 | 45/44/46 | 45 | 6/2/4 |
+| round 8 | 47 = **r1's 32 verbatim** + 15 r1-style synth (read→write_file FULL) | r1's exact recipe, from scratch | 46/45/47 | 46 (best derivative) | 5/3/4 |
 
 Eval = 24-task suite (7 core / 9 multi / 8 hard), 72 checks, 3 runs per model,
 head-to-head A/B (`npm run eval`). Raw rows append to
@@ -56,9 +57,12 @@ Four hypotheses were tested and **all refuted**:
    chain pairs at LR 2.5e-5 / 2 epochs: 45/72 with multi 2/9. Gentleness
    didn't matter — even touching r1's weights with chain data erodes multi.
 
-**Conclusion: the score is a property of r1's original 32 pairs.** Only the
-two runs trained on them reach 52–54 — every derived dataset scores 36–46
-from scratch (r2–r6) AND via gentle continuation from r1's own weights (r7).The multi tier (r1: 6/9) is what every derivative breaks.
+**Conclusion: the score is a property of r1's exact 32-pair set.** Only the
+two runs trained on exactly those pairs reach 52–54 — every deviation lands
+36–46 with multi 2–3/9: replacing the data (r2–r5), matching the recipe on
+other data (r6), gentle continuation from r1's own weights (r7), and even
+**adding** r1-style synth pairs to r1's own data (r8: 46/72, multi 3/9).
+The multi tier (r1: 6/9) is what every deviation breaks.
 
 **Forensics verdict (2026-09-22, option B executed — full entry in
 `docs/baseline.json`, type `data_forensics`):** rendering/provenance and the
@@ -128,7 +132,8 @@ max_seq 1536, loss 1.198) — which then validated at 52/72, matching the
 original. **Policy: after every `ollama create pixie-7b`, immediately run
 `ollama cp pixie-7b pixie-7b-r<N>` BEFORE scoring.** Current snapshots:
 `pixie-7b-r1` (shipped), `-r4`, `-r5`, `-r6`, `-r7`. The `-r4` copy in Ollama also
-backs the r4 adapter.
+backs the r4 adapter. Round-8 copies exist too: `pixie-7b-r8` in Ollama and
+`training/pixie-7b-lora-r8` on disk (best derivative, 46/72, not shipped).
 
 ## Environment facts
 
@@ -168,16 +173,22 @@ at `training/render_forensics.py` (re-run anytime: `./.venv/Scripts/python.exe
 render_forensics.py` from `training/`). Option C is moot — provenance is
 not the problem.
 
-**C. Round 8 — NEXT: synthesize r1-style coverage, train r1's recipe.**
-Build ~10–15 new pairs in r1's exact style (short prompt, ONE tool call,
-FULL-file `write_file` content, terse summary) covering the chronically
-failed shapes — append-to-list (#12), JSON edit (#13), read-transform-write
-(#15), exact one-line copy (#16) — all as read → write_file(full content),
-never `edit_file`. Concat with r1's 32 pairs (~45 total), train 6 epochs /
-max_seq 1536 from base (~2 min/step), then standard export →
-`ollama create` → `ollama cp pixie-7b pixie-7b-r8` → eval ×3. Success bar:
-multi ≥ 6/9 with core ≥ 6/7. If it works, codify the no-`edit_file` rule
-in `scripts/distill.ts` (rewrite distilled traces to read→write form).
+**C. Round 8 — EXECUTED (2026-09-22), REFUTED.** `scripts/build-round8.ts`
+generated 15 verified r1-style synth pairs (read → write_file(full content),
+no `edit_file`) covering eval shapes #12/#13/#15/#16; trained from scratch
+on r1's 32 + 15 = 47 pairs with r1's exact recipe (6ep / 2.5e-4 / 1536,
+loss 0.812). Result: 46/45/47 → median 46/72, multi 2–3/9 in all runs —
+the best derivative yet but far short of the success bar (multi ≥ 6/9),
+and ~6 checks below r1. Shape coverage was NOT the missing ingredient.
+Not shipped; `pixie-7b` tag restored to r1 (`5c4feb1fdbb3`) after scoring.
+Full entry: `docs/baseline.json` (round 8). Round-9 options: (a) accept r1
+as terminal for this 7B; (b) a ~150-pair same-style synth pool — expensive,
+and r8's dilution sensitivity argues against it; (c) provenance archaeology
+on the original r1 session's non-content state (chat template/tokenizer) —
+weakened but not dead, since the r1redo retrain scored 52–54 from
+reconstructed data only. If a future round ever clears multi ≥ 6/9,
+codify the no-`edit_file` rule in `scripts/distill.ts` (rewrite distilled
+traces to read→write form).
 
 Regardless of path: any new eval result goes into `docs/baseline.json` +
 this file, and the `pixie-7b` tag must end the session pointing at the best

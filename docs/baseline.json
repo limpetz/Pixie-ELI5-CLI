@@ -363,5 +363,53 @@
     ],
     "conclusion": "r1's score is carried by its narrow, redundant curriculum: short prompts, single whole-file write_file completions, precise full content. Derived sets teach edit_file/chain SHAPES the 7B imitates without the exact-match skill, breaking the very tasks they were meant to fix. Winning recipe = many small full-file writes, NOT one exemplar per shape.",
     "next": "Round 8 candidate: r1's 32 pairs + ~10-15 synth pairs in r1's own style that cover eval shapes via READ -> write_file(FULL content) (never edit_file), keeping 66-char-style prompts and 136-char summaries. Train r1 recipe (6ep/1536, ~2 min/step). If multi recovers without core loss, edit_file demonstrations are banned from training data."
+  },
+  {
+    "type": "official_baseline",
+    "label": "post-training (Pixie-7B round 8: r1's 32 pairs verbatim + 15 r1-style synth, read->write_file) — multi does NOT recover, not shipped",
+    "date": "2026-09-22",
+    "suite": {
+      "tasks": 24,
+      "checks": 72,
+      "tiers": {
+        "core": 7,
+        "multi": 9,
+        "hard": 8
+      }
+    },
+    "candidate": {
+      "model": "pixie-7b (round 8: from-scratch on 47 pairs — r1's original 32 verbatim + 15 synthetic in r1's exact style (short prompt, single call, read -> write_file FULL content) covering the failed modify shapes #12 append, #13 JSON edit, #15 read-transform, #16 exact copy; r1's recipe: 6 epochs, LR 2.5e-4, max_seq 1536, train_loss 0.812)",
+      "runs": [
+        46,
+        45,
+        47
+      ],
+      "medianChecks": "46/72",
+      "tasksMedian": "12/24",
+      "byTierMedian": {
+        "core": "5/7",
+        "multi": "3/9",
+        "hard": "4/8"
+      },
+      "notes": "Best derivative yet (median 46 vs 36-45 for r2-r7) and hard matches r1 (4/8 in every run), but multi stays collapsed at 2-3/9 in all runs against the success bar of multi >= 6/9, and core dipped to 5/7 twice. Adding r1-style synth pairs to r1's own data still erodes the multi skill."
+    },
+    "reference": {
+      "model": "qwen2.5-coder:7b (same-run controls)",
+      "runs": [
+        30,
+        23,
+        25
+      ],
+      "medianChecks": "25/72",
+      "tasksMedian": "6/24",
+      "byTierMedian": {
+        "core": "4/7",
+        "multi": "2/9",
+        "hard": "1/8"
+      },
+      "notes": "Base in its usual 23-30 band; round 8 won head-to-heads 3/3."
+    },
+    "verdict": "The forensics-guided hypothesis is REFUTED: shape coverage was not the missing ingredient. Training on r1's 32 pairs verbatim plus 15 read->write_file synth pairs that imitate r1's style and cover exactly the failed modify shapes yields 46/72 with multi 2-3/9 — the multi skill did not move, and ~6 checks vs r1 are still lost. Full evidence across rounds 2-8: every deviation from r1's exact 32-pair set lands 36-46 with multi 2-3/9 — replacing its data (r2-r5), matching its recipe on other data (r6), touching its weights with other data (r7), and now even ADDING same-style data to its own data (r8). Only the two runs trained on exactly the 32 pairs score 52-54. Options for round 9: (a) accept r1 as terminal for this 7B and stop adapter iterations; (b) a ~10x larger same-style synth pool (150+) — expensive and contradicted by r8's sensitivity to dilution; (c) provenance archaeology on the ORIGINAL r1 session's non-content state (chat template/tokenizer), though the r1redo retrain scoring identically weakens that too. Round 1 stays shipped; pixie-7b tag restored to r1 (5c4feb1fdbb3) after scoring.",
+    "method": "npm run eval, identical 24-task suite, 3 same-day runs per model. Round-8 data: scripts/build-round8.ts synthesized 15 r1-style pairs verified against the eval task specs (no edit_file anywhere); training/lora_config.py set DATASET_FILE=round8.jsonl, BASE_ADAPTER=None, r1's schedule (6ep / 2.5e-4 / seq 1536); 18 steps, train_loss 0.8124. Exported via export-gguf.py, imported as ollama pixie-7b, snapshot pixie-7b-r8 taken BEFORE scoring; adapter copied durably to training/pixie-7b-lora-r8. Logs: training/eval-r8-run1..3.log; raw rows in gitignored training/eval-results.json."
   }
 ]
