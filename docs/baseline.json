@@ -411,5 +411,53 @@
     },
     "verdict": "The forensics-guided hypothesis is REFUTED: shape coverage was not the missing ingredient. Training on r1's 32 pairs verbatim plus 15 read->write_file synth pairs that imitate r1's style and cover exactly the failed modify shapes yields 46/72 with multi 2-3/9 — the multi skill did not move, and ~6 checks vs r1 are still lost. Full evidence across rounds 2-8: every deviation from r1's exact 32-pair set lands 36-46 with multi 2-3/9 — replacing its data (r2-r5), matching its recipe on other data (r6), touching its weights with other data (r7), and now even ADDING same-style data to its own data (r8). Only the two runs trained on exactly the 32 pairs score 52-54. Options for round 9: (a) accept r1 as terminal for this 7B and stop adapter iterations; (b) a ~10x larger same-style synth pool (150+) — expensive and contradicted by r8's sensitivity to dilution; (c) provenance archaeology on the ORIGINAL r1 session's non-content state (chat template/tokenizer), though the r1redo retrain scoring identically weakens that too. Round 1 stays shipped; pixie-7b tag restored to r1 (5c4feb1fdbb3) after scoring.",
     "method": "npm run eval, identical 24-task suite, 3 same-day runs per model. Round-8 data: scripts/build-round8.ts synthesized 15 r1-style pairs verified against the eval task specs (no edit_file anywhere); training/lora_config.py set DATASET_FILE=round8.jsonl, BASE_ADAPTER=None, r1's schedule (6ep / 2.5e-4 / seq 1536); 18 steps, train_loss 0.8124. Exported via export-gguf.py, imported as ollama pixie-7b, snapshot pixie-7b-r8 taken BEFORE scoring; adapter copied durably to training/pixie-7b-lora-r8. Logs: training/eval-r8-run1..3.log; raw rows in gitignored training/eval-results.json."
+  },
+  {
+    "type": "official_baseline",
+    "label": "post-training (Pixie-7B round 9 arm B: continuation from the r1redo adapter on 15 r1-convention synth rows) — best derivative ever (52/72, multi 4/9) but the bar is not cleared; not shipped",
+    "date": "2026-09-22",
+    "suite": {
+      "tasks": 24,
+      "checks": 72,
+      "tiers": {
+        "core": 7,
+        "multi": 9,
+        "hard": 8
+      }
+    },
+    "candidate": {
+      "model": "pixie-7b (round 9 arm B: continuation from training/pixie-7b-lora-r1redo on training/round9-synth15.jsonl — 15 synth pairs whose TASKS mirror r8 (eval shapes #11/#12/#13/#15/#16) but whose CONVENTIONS were rebuilt to r1 audited style: write_file content never ends with a trailing newline (r1: 31/32), mixed bullets (7 x bullet-dot / 4 x star / 4 x dash), 4 summary shapes (standard/compact/no-try/Great-preamble), ~136-char summaries, no edit_file; r7 gentle protocol: 2 epochs, LR 2.5e-5, seq 1536, train_loss 0.595)",
+      "runs": [
+        53,
+        52,
+        44
+      ],
+      "medianChecks": "52/72",
+      "tasksMedian": "15/24",
+      "byTierMedian": {
+        "core": "7/7",
+        "multi": "4/9",
+        "hard": "4/8"
+      },
+      "notes": "First derivative round to reach r1s 52-54 band, and the best per-run score of ANY round including r1s retrain (53). Core perfect 7/7 in 2/3 runs; multi peaked at 5/9 (run 1) vs r8s cap of 3. But the median multi 4/9 misses the >= 6/9 success bar, and run 3 collapsed to 44 (multi 3/9) — variance r1 never shows. Convention-matching moved the needle; it did not reproduce r1."
+    },
+    "reference": {
+      "model": "qwen2.5-coder:7b (same-run controls)",
+      "runs": [
+        29,
+        27,
+        27
+      ],
+      "medianChecks": "27/72",
+      "tasksMedian": "8/24",
+      "byTierMedian": {
+        "core": "4/7",
+        "multi": "3/9",
+        "hard": "0/8"
+      },
+      "notes": "Base in its usual band; round 9B won head-to-heads 3/3."
+    },
+    "verdict": "The convention-fix hypothesis is PARTIALLY CONFIRMED but the round fails its bar. r8s five style-drift vectors were real signals: fixing them (plus continuing from r1s own weights rather than from-scratch) moved median 46 -> 52 and multi 2-3/9 -> 3-5/9, the first time any deviation from exact-32 entered r1s band. Yet multi still caps below 6/9 and the spread (44-53) shows the mixture is brittle in a way exact-32 is not. Standing pattern after 8 rounds: scores scale with how closely the training signal approximates r1s exact 32 pairs under r1 conventions; nothing has reproduced the multi skill. Remaining untested: arm A — from-scratch on r1s 32 + only the 5 exact eval-mirror synth rows (training/round9-32plus5.jsonl, already built) at r1s full recipe, the maximal-convention minimal-dilution variant. If arm A also misses the bar, accept r1 as terminal for this 7B. Round 1 stays shipped: pixie-7b tag restored to r1 (5c4feb1fdbb3) after scoring and verified with scripts/probe.ts 4/4 tool rounds.",
+    "method": "npm run eval, identical 24-task suite, 3 same-day runs per model. Round-9 arm B data: scripts/build-round9.ts rebuilt the 15 r8 scenarios with r1-audited conventions (edit_file banned; every trace replayed through the real executeTool and scored with the evals runChecks at build time; builders validate() enforces the convention contract). training/lora_config.py: DATASET_FILE=round9-synth15.jsonl, BASE_ADAPTER=pixie-7b-lora-r1redo, 2ep / 2.5e-5 / seq 1536, 2 steps, train_loss 0.595. Exported via export-gguf.py, imported as ollama pixie-7b, scored under that tag (all 3 runs used the r9b GGUF); snapshot pixie-7b-r9b kept; tag restored to r1 afterwards. Logs: training/train-r9b.log, training/export-r9b.log, training/eval-r9b-run1..3.log; raw rows in gitignored training/eval-results.json."
   }
 ]
