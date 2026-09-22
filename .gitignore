@@ -26,3 +26,7 @@ training/*
 !training/chain-retry.txt
 !training/multi5-retry.txt
 !training/requirements-lock.txt
+# frozen terminal 7B baseline (pixie-7b-r1-final): the exact r1 data + freeze manifests
+!training/r1.jsonl
+!training/freezes/
+!training/freezes/*

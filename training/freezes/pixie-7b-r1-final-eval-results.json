@@ -1,0 +1,1932 @@
+[
+  {
+    "date": "2026-09-20T03:28:58.695Z",
+    "suite": 24,
+    "a": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "44/72",
+      "tasks": "14/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "llama3.1:8b",
+      "checks": "44/72",
+      "tasks": "9/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "tie"
+  },
+  {
+    "date": "2026-09-20T03:37:43.263Z",
+    "suite": 24,
+    "a": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "41/72",
+      "tasks": "14/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "llama3.1:8b",
+      "checks": "46/72",
+      "tasks": "10/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 2,
+          "total": 8
+        }
+      }
+    },
+    "winner": "B"
+  },
+  {
+    "type": "official_baseline",
+    "label": "pre-training",
+    "date": "2026-09-20",
+    "suite": {
+      "tasks": 24,
+      "checks": 72,
+      "tiers": {
+        "core": 7,
+        "multi": 9,
+        "hard": 8
+      }
+    },
+    "candidate": {
+      "model": "qwen2.5-coder:7b",
+      "runs": [
+        57,
+        44,
+        41
+      ],
+      "medianChecks": "44/72",
+      "tasksMedian": "14/24",
+      "notes": "High run-to-run variance (41-57) driven by stochastic narration-instead-of-acting failures; the round-1 nudge catches most but not all."
+    },
+    "reference": {
+      "model": "llama3.1:8b",
+      "runs": [
+        44,
+        44,
+        46
+      ],
+      "medianChecks": "44/72",
+      "tasksMedian": "9/24",
+      "notes": "Stable across runs; weaker at multi/hard tiers."
+    },
+    "verdict": "Pre-training, Pixie's default model and the reference tie at a median of 44/72 checks; the fine-tune must beat the median, not a single run.",
+    "method": "npm run eval, identical 24-task suite, 3 runs: the post-fix validation run plus 2 same-day reruns (raw rows appended to training/eval-results.json, which was reset before the reruns and is gitignored)."
+  },
+  {
+    "date": "2026-09-20T09:48:10.737Z",
+    "suite": 4,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "0/11",
+      "tasks": "0/4",
+      "byTier": {
+        "core": {
+          "passed": 0,
+          "total": 4
+        },
+        "multi": {
+          "passed": 0,
+          "total": 0
+        },
+        "hard": {
+          "passed": 0,
+          "total": 0
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "9/11",
+      "tasks": "3/4",
+      "byTier": {
+        "core": {
+          "passed": 3,
+          "total": 4
+        },
+        "multi": {
+          "passed": 0,
+          "total": 0
+        },
+        "hard": {
+          "passed": 0,
+          "total": 0
+        }
+      }
+    },
+    "winner": "B"
+  },
+  {
+    "date": "2026-09-20T10:14:11.782Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "50/72",
+      "tasks": "14/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "32/72",
+      "tasks": "10/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 2,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-20T10:33:15.931Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "56/72",
+      "tasks": "16/24",
+      "byTier": {
+        "core": {
+          "passed": 7,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 5,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "30/72",
+      "tasks": "8/24",
+      "byTier": {
+        "core": {
+          "passed": 2,
+          "total": 7
+        },
+        "multi": {
+          "passed": 5,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-20T10:41:24.645Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "49/72",
+      "tasks": "13/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "28/72",
+      "tasks": "8/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 0,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-20T10:46:54.049Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "53/72",
+      "tasks": "14/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "32/72",
+      "tasks": "9/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-20T10:49:37.846Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "54/72",
+      "tasks": "15/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 5,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "29/72",
+      "tasks": "8/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 0,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-20T18:26:01.656Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "45/72",
+      "tasks": "12/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "41/72",
+      "tasks": "13/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-20T18:30:21.126Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "45/72",
+      "tasks": "12/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "33/72",
+      "tasks": "10/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-20T18:34:50.074Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "44/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 2,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "44/72",
+      "tasks": "13/24",
+      "byTier": {
+        "core": {
+          "passed": 3,
+          "total": 7
+        },
+        "multi": {
+          "passed": 6,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "winner": "tie"
+  },
+  {
+    "date": "2026-09-20T22:58:31.811Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "44/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "42/72",
+      "tasks": "13/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 5,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-20T23:01:39.174Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "43/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "32/72",
+      "tasks": "10/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 5,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-20T23:04:35.133Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "43/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 2,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "25/72",
+      "tasks": "8/24",
+      "byTier": {
+        "core": {
+          "passed": 3,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 2,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T03:56:49.621Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "48/72",
+      "tasks": "12/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 5,
+          "total": 9
+        },
+        "hard": {
+          "passed": 2,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "36/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 2,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T04:05:47.214Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "40/72",
+      "tasks": "8/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 0,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "39/72",
+      "tasks": "12/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T04:14:59.398Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "43/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "25/72",
+      "tasks": "5/24",
+      "byTier": {
+        "core": {
+          "passed": 2,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 0,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T06:33:04.031Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "42/72",
+      "tasks": "10/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "21/72",
+      "tasks": "5/24",
+      "byTier": {
+        "core": {
+          "passed": 3,
+          "total": 7
+        },
+        "multi": {
+          "passed": 1,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T06:36:17.220Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "40/72",
+      "tasks": "9/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 2,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "34/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 5,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T06:39:10.780Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "40/72",
+      "tasks": "9/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 1,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "23/72",
+      "tasks": "5/24",
+      "byTier": {
+        "core": {
+          "passed": 3,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 0,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T08:02:18.593Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "43/72",
+      "tasks": "12/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "30/72",
+      "tasks": "9/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T08:08:04.552Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "45/72",
+      "tasks": "13/24",
+      "byTier": {
+        "core": {
+          "passed": 7,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "27/72",
+      "tasks": "8/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 0,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T08:11:14.836Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "46/72",
+      "tasks": "13/24",
+      "byTier": {
+        "core": {
+          "passed": 7,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "34/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 5,
+          "total": 9
+        },
+        "hard": {
+          "passed": 2,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T08:51:01.212Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "54/72",
+      "tasks": "16/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 6,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "35/72",
+      "tasks": "10/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T08:54:01.843Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "52/72",
+      "tasks": "16/24",
+      "byTier": {
+        "core": {
+          "passed": 7,
+          "total": 7
+        },
+        "multi": {
+          "passed": 5,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "33/72",
+      "tasks": "8/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T08:59:13.818Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "52/72",
+      "tasks": "15/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 6,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "25/72",
+      "tasks": "7/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T11:11:23.905Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "46/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "24/72",
+      "tasks": "6/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 0,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T11:14:10.082Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "45/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "25/72",
+      "tasks": "7/24",
+      "byTier": {
+        "core": {
+          "passed": 3,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T11:17:05.292Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "46/72",
+      "tasks": "12/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "29/72",
+      "tasks": "9/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 2,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T12:37:25.663Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "44/72",
+      "tasks": "7/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "27/72",
+      "tasks": "9/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T12:45:32.091Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "34/72",
+      "tasks": "6/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 1,
+          "total": 9
+        },
+        "hard": {
+          "passed": 0,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "22/72",
+      "tasks": "6/24",
+      "byTier": {
+        "core": {
+          "passed": 3,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T13:08:22.757Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "36/72",
+      "tasks": "5/24",
+      "byTier": {
+        "core": {
+          "passed": 2,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "30/72",
+      "tasks": "10/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 2,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T22:39:15.155Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "45/72",
+      "tasks": "12/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "36/72",
+      "tasks": "9/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T22:42:06.073Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "44/72",
+      "tasks": "12/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "33/72",
+      "tasks": "10/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-21T22:44:59.930Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "46/72",
+      "tasks": "12/24",
+      "byTier": {
+        "core": {
+          "passed": 7,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "29/72",
+      "tasks": "9/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-22T06:32:06.216Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "46/72",
+      "tasks": "12/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "30/72",
+      "tasks": "9/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-22T06:35:46.225Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "45/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "23/72",
+      "tasks": "5/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 0,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-22T06:39:25.161Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "47/72",
+      "tasks": "13/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "25/72",
+      "tasks": "6/24",
+      "byTier": {
+        "core": {
+          "passed": 3,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-22T07:39:12.168Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "53/72",
+      "tasks": "16/24",
+      "byTier": {
+        "core": {
+          "passed": 7,
+          "total": 7
+        },
+        "multi": {
+          "passed": 5,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "29/72",
+      "tasks": "10/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 5,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-22T07:43:35.544Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "52/72",
+      "tasks": "15/24",
+      "byTier": {
+        "core": {
+          "passed": 7,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "27/72",
+      "tasks": "8/24",
+      "byTier": {
+        "core": {
+          "passed": 3,
+          "total": 7
+        },
+        "multi": {
+          "passed": 4,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-22T07:48:38.231Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "44/72",
+      "tasks": "12/24",
+      "byTier": {
+        "core": {
+          "passed": 6,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 3,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "27/72",
+      "tasks": "7/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 0,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-22T09:31:24.677Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "43/72",
+      "tasks": "10/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 1,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "25/72",
+      "tasks": "5/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 1,
+          "total": 9
+        },
+        "hard": {
+          "passed": 0,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-22T09:34:32.987Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "42/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "26/72",
+      "tasks": "8/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 1,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  },
+  {
+    "date": "2026-09-22T09:37:40.763Z",
+    "suite": 24,
+    "a": {
+      "model": "pixie-7b",
+      "checks": "42/72",
+      "tasks": "11/24",
+      "byTier": {
+        "core": {
+          "passed": 5,
+          "total": 7
+        },
+        "multi": {
+          "passed": 2,
+          "total": 9
+        },
+        "hard": {
+          "passed": 4,
+          "total": 8
+        }
+      }
+    },
+    "b": {
+      "model": "qwen2.5-coder:7b",
+      "checks": "26/72",
+      "tasks": "7/24",
+      "byTier": {
+        "core": {
+          "passed": 4,
+          "total": 7
+        },
+        "multi": {
+          "passed": 3,
+          "total": 9
+        },
+        "hard": {
+          "passed": 0,
+          "total": 8
+        }
+      }
+    },
+    "winner": "A"
+  }
+]
