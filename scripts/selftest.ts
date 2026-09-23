@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { StreamFilter } from "../src/stream.js";
 import { tryParseToolCall } from "../src/toolparse.js";
-import { looksLikeDescribedAction } from "../src/agent.js";
+import { looksLikeDescribedAction, usedOnlyReadOnlyTools, looksLikeCompletionSummary, looksLikeFakeToolResponse } from "../src/agent.js";
 import { runChecks } from "./eval.js";
 import { executeTool } from "../src/tools.js";
 
@@ -190,6 +190,30 @@ check("detects 'I'll create…'", looksLikeDescribedAction("Sure! I'll create a 
 check("ignores informational answers", looksLikeDescribedAction("There are 7 continents on Earth. In one short sentence, that is the answer."), false);
 check("ignores greetings", looksLikeDescribedAction("Hello! How can I help you today?"), false);
 
+/* ── keep-going nudge detectors ── */
+console.log("keep-going nudge detectors:");
+check(
+  "read-only tool set detected",
+  usedOnlyReadOnlyTools(new Set(["list_files", "read_file"])),
+  true,
+);
+check(
+  "search counts as read-only",
+  usedOnlyReadOnlyTools(new Set(["search_files"])),
+  true,
+);
+check(
+  "write tool breaks read-only",
+  usedOnlyReadOnlyTools(new Set(["read_file", "write_file"])),
+  false,
+);
+check("empty tool set is not read-only exploration", usedOnlyReadOnlyTools(new Set()), false);
+check("detects completion summary", looksLikeCompletionSummary("What I did:\n- Listed files"), true);
+check("plain answer is not a completion summary", looksLikeCompletionSummary("There are 7 continents."), false);
+check("detects fake tool_response", looksLikeFakeToolResponse("<tool_response>menu.txt (24 bytes)</tool_response>"), true);
+check("detects fake tool_result tag", looksLikeFakeToolResponse("<tool_result>42</tool_result>"), true);
+check("normal prose is not a fake tool response", looksLikeFakeToolResponse("I read the file and it says 21."), false);
+
 /* ── eval harness checks ── */
 console.log("runChecks (eval harness):");
 {
@@ -246,6 +270,58 @@ console.log("tools (integration):");
 
   const r6 = executeTool(dir, "list_files", {}, opts);
   check("list_files shows nested folders", r6.output.includes("photos/"), true);
+
+  rmSync(dir, { recursive: true, force: true });
+}
+
+/* ── scaffold-v2 tool signals (runtime-only guardrails) ── */
+console.log("scaffold-v2 tool signals:");
+{
+  const dir = mkdtempSync(join(tmpdir(), "pixie-scaffold-"));
+  const opts = { autoApproveBash: false };
+
+  writeFileSync(join(dir, "notes.txt"), "line1\nline2\nline3", "utf8");
+  const w1 = executeTool(dir, "write_file", { path: "notes.txt", content: "line1\nline2\nline3" }, opts);
+  check(
+    "write_file replace reports was→now line counts",
+    w1.output === `Wrote notes.txt (replaced: was 3 lines, now 3)`,
+    true,
+  );
+
+  const w2 = executeTool(dir, "write_file", { path: "brand-new.txt", content: "hi" }, opts);
+  check("write_file create has no replace signal", w2.output, "Wrote brand-new.txt");
+
+  writeFileSync(join(dir, "config.json"), '{ "theme": "light" }', "utf8");
+  const w3 = executeTool(dir, "write_file", { path: "config.json", content: "{ broken" }, opts);
+  check(
+  	"invalid JSON write warns on .json replace",
+  	w3.output.includes("not valid JSON"),
+  	true,
+  );
+
+  const w4 = executeTool(dir, "write_file", { path: "config.json", content: '{ "theme": "dark" }' }, opts);
+  check("valid JSON write gets no warning", w4.output.includes("not valid JSON"), false);
+
+  writeFileSync(join(dir, "data.txt"), "{}", "utf8");
+  const w5 = executeTool(dir, "write_file", { path: "data.txt", content: "{ broken" }, opts);
+  check("no JSON warning for non-.json paths", w5.output.includes("not valid JSON"), false);
+
+  writeFileSync(join(dir, "poem.txt"), "roses are red\n", "utf8");
+  const e1 = executeTool(dir, "edit_file", { path: "poem.txt", old_text: "violets", new_text: "tulips" }, opts);
+  check(
+    "edit_file failure suggests read → write_file",
+    e1.output.includes("Nothing was changed") && e1.output.includes("write_file"),
+    true,
+  );
+
+  const s1 = executeTool(dir, "search_files", { query: "poem.txt" }, opts);
+  check(
+    "search by filename points to read_file",
+    s1.output.includes("read_file"),
+    true,
+  );
+  const s2 = executeTool(dir, "search_files", { query: "zzz-nothing" }, opts);
+  check("truly empty search stays plain", s2.output.includes('No matches for'), true);
 
   rmSync(dir, { recursive: true, force: true });
 }

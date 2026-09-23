@@ -1,6 +1,29 @@
 # Pixie — Session Handoff
 
-*Written 2026-09-22 after round 9 arm A (from-scratch on 32 r1 + 5 exact eval-mirror rows) scored **42/72 median, multi 2/9 — second-worst derivative round** and the last pre-registered experiment. **Round 1 is declared TERMINAL for this 7B** (the pre-registered decision rule from next-step E). Read this first when resuming.*
+*Written 2026-09-22 after round 9 arm A (from-scratch on 32 r1 + 5 exact eval-mirror rows) scored **42/72 median, multi 2/9 — second-worst derivative round** and the last pre-registered experiment. **Round 1 is declared TERMINAL for this 7B** (the pre-registered decision rule from next-step E). Read this first when resuming. Updated 2026-09-23: scaffold-v2 work below.*
+
+## Scaffold-v2 (2026-09-23) — MERGED TO `master` (committed on branch `scaffold-v2`, fast-forwarded into master same day)
+
+The round-1 model is untouched (tag still `5c4feb1fdbb3`); the runtime around it got better. Full entry: `docs/baseline.json` (scaffold-v2 entry, 2026-09-23).
+
+- **Why**: the forensics said derivatives fail modify-tasks because they imitate r1's shape without r1's read → `write_file`(FULL) skill. Scaffold-v2 teaches that strategy at **runtime** — no training, no new data.
+- **What changed** (`src/agent.ts`, `src/tools.ts`):
+  - `BEGINNER_SYSTEM_PROMPT` gains a "CHANGING A FILE THAT ALREADY EXISTS" strategy block (read first, rewrite the FULL content, keep untouched lines, check the line-count report).
+  - `write_file` on an existing file now answers `Wrote X (replaced: was N lines, now M)`; `.json` paths additionally warn when the new content is not valid JSON.
+  - `edit_file` failure suggests read → `write_file`(full) instead of being a dead end.
+  - `search_files` with no text hits but a filename match points to `read_file` (kills the "couldn't find code.txt" spiral on #15).
+  - **keep-going nudge**: turns that only explored (list/read/search, zero writes) and then post a "What I did" summary get one deterministic push to finish the job.
+  - **fake-response nudge**: hallucinated `<tool_response>` blocks get one deterministic push to actually call tools.
+  - Narration nudge widened to `-ing` verb forms; each nudge type has an independent once-per-turn budget (the old single `nudged` flag let one nudge disable the others).
+  - Dataset builders pin canonical frozen-era `Wrote X` output so r8/r9 regeneration stays byte-reproducible (runtime enrichment must not leak into generated data).
+- **Result** (A/B = `pixie-7b` vs itself, so every delta is pure scaffold; 6 final-code passes = 12 arm-runs): **median 52.5/72 vs frozen 52–53 — parity or better — and best single run 57/72 = the project record** (core 7/7, **multi 7/9** — first time above the frozen multi ceiling of 6/9). Per-task: #12 (append) 12/12, #21 (csv append) 10/12, #22/#13 12/12 — vs #12/#21 failing nearly always on the frozen scaffold. Hard median 4/8 → 5/8. Still stubborn: #14/#15/#20/#23. Watch: #3/#8 mildly noisier. Cost: ~+1 tool round/task (recovery nudges; bounded by maxToolRounds).
+- **Gates all green**: `npm run typecheck`, `npm run selftest` (52 tests, 14 new), `npx tsx scripts/verify-smoke.ts` (55), `npx tsx scripts/probe.ts --model pixie-7b --rounds 4` → 4/4. Logs: `training/eval-scaffold-v2-pass{1..6}.log`.
+- **Policy for any future training**: datasets must be re-rendered with the NEW prompt + tool outputs (builders already embed `BEGINNER_SYSTEM_PROMPT` at build time); the `tool-schemas.json` hash in the freeze manifest describes the frozen era only. Per the freeze manifest, `pixie-14b` stays on the FROZEN scaffold for clean baselines; merge scaffold-v2 into it only after its own baseline.
+- **Hardware fact learned**: 14B QLoRA cannot fit the local RTX 4060 8 GB (~7.4 GB of 4-bit weights alone). The 14B branch needs cloud training (or a bigger GPU); a stock-`qwen2.5-coder:14b` eval is the cheap local gate.
+
+## What this session also fixed (2026-09-23)
+
+- `git` was broken: `HEAD` pointed at branch `pixie-14b` whose ref file was ~40 KB of null bytes ("your current branch appears to be broken"). Repaired by deleting the corrupt ref, pointing HEAD back at `master` (history intact, ends at the freeze commit `d7df725` — the index/worktree were byte-identical to master), recreating `pixie-14b` fresh from master, then cutting `scaffold-v2` from it as pre-registered in the freeze manifest.
 
 ## What Pixie is
 
@@ -264,6 +287,15 @@ it ever becomes cheap; (3) scaffold improvements in `src/` so eval
 performance depends less on tiny-model skills. Do not run further
 same-recipe 7B rounds on variants of this dataset — nine rounds say the
 multi skill is not recoverable that way.
+
+**F3 status update (2026-09-23): EXECUTED on branch `scaffold-v2` — best
+results ever recorded for pixie-7b (median 52.5, record 57/72, multi 7/9).
+See the Scaffold-v2 section at the top. F1 is hardware-blocked locally
+(14B QLoRA does not fit 8 GB); when revisiting F1, gate first with a stock
+`qwen2.5-coder:14b` eval, then use cloud QLoRA. Remaining known-broken
+tasks for future scaffold work: #14 (riddle reply), #15 (code double),
+#20 (three-page website), #23 (wishlist → best.txt) — all involve
+transform-then-save or synthesis, not modify.**
 
 Regardless of path: any new eval result goes into `docs/baseline.json` +
 this file, and the `pixie-7b` tag must end the session pointing at the best

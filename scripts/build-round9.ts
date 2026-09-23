@@ -312,9 +312,12 @@ function renderScenario(s: Scenario, bullet: string, shape: Shape): Pair {
     } else {
       const r = executeTool(ws, "write_file", { path: a.path, content: a.content }, { autoApproveBash: false });
       if (!r.ok) throw new Error(`${s.id}: write_file(${a.path}) failed: ${r.output}`);
-      if (r.output !== `Wrote ${a.path}`) throw new Error(`${s.id}: unexpected write output: ${r.output}`);
+      if (r.output !== `Wrote ${a.path}` && !r.output.startsWith(`Wrote ${a.path} (replaced:`)) throw new Error(`${s.id}: unexpected write output: ${r.output}`);
       files.set(a.path, a.content);
-      msgs.push(call("write_file", { path: a.path, content: a.content }), toolRes("write_file", r.output));
+      // Dataset rows carry the canonical frozen-era tool output (r8/r9 data was
+      // built before scaffold-v2 enriched write_file output) — keep rows
+      // byte-reproducible regardless of runtime tool-output changes.
+      msgs.push(call("write_file", { path: a.path, content: a.content }), toolRes("write_file", `Wrote ${a.path}`));
     }
   }
 

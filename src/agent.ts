@@ -10,6 +10,11 @@ HOW YOU ACT (most important):
 - Use one tool call at a time and wait for its result before deciding the next step.
 - Only AFTER your tools have finished the job, reply with a short summary.
 
+CHANGING A FILE THAT ALREADY EXISTS:
+- Read it first, then use write_file with the COMPLETE new content — every old line you keep PLUS the change.
+- When you replace a file, keep ALL the lines the user did not ask you to change.
+- After writing, check the tool's line-count report: if lines went missing, write the file again with everything back in.
+
 HOW TO SOUND (ELI5):
 - Very short sentences. Everyday words a young kid knows.
 - If you must use a techy word, explain it with a tiny comparison to something real (like "a file is like a page in your backpack").
@@ -70,8 +75,11 @@ export async function runTurn(
 
   let toolRounds = 0;
   let autoApprove = hooks.autoRun ?? !cfg.beginnerMode;
-  let nudged = false;
+  let narrationNudged = false;
+  let fakeResponseNudged = false;
+  let keepGoingNudged = false;
   let temp0Retry = false;
+  const toolsUsed = new Set<string>();
 
   while (toolRounds < cfg.maxToolRounds) {
     hooks.onThinkStart?.();
@@ -84,8 +92,8 @@ export async function runTurn(
     if (toolCalls.length === 0) {
       // Small models sometimes *describe* doing the task ("What I did: - Created…")
       // instead of actually calling tools. Give them exactly one chance to act.
-      if (!nudged && toolRounds === 0 && looksLikeDescribedAction(content)) {
-        nudged = true;
+      if (!narrationNudged && looksLikeDescribedAction(content)) {
+        narrationNudged = true;
         temp0Retry = true; // retry deterministically (temp 0): same narration can't repeat
         messages.push({ role: "assistant", content });
         messages.push({
@@ -93,6 +101,33 @@ export async function runTurn(
           content: "You described those actions but did not actually do them. Use your tools now to do it for real, then give your summary.",
         });
         logger.write({ type: "nudge", trigger: content.slice(0, 200) });
+        continue;
+      }
+      // Small models sometimes hallucinate a fake tool result (<tool_response>…)
+      // instead of calling the tool. Push once, deterministically.
+      if (!fakeResponseNudged && looksLikeFakeToolResponse(content)) {
+        fakeResponseNudged = true;
+        temp0Retry = true;
+        messages.push({ role: "assistant", content });
+        messages.push({
+          role: "user",
+          content: "That looked like tool output, but you did not call a tool. Use your tools now to do the real work, then give your summary.",
+        });
+        logger.write({ type: "nudge", kind: "fake-response", trigger: content.slice(0, 200) });
+        continue;
+      }
+      // Exploration-only stop: the model looked at files but never acted, then
+      // declared the task done (classic on read → transform → save requests).
+      // One deterministic push to finish the job with its tools.
+      if (!keepGoingNudged && toolRounds > 0 && usedOnlyReadOnlyTools(toolsUsed) && looksLikeCompletionSummary(content)) {
+        keepGoingNudged = true;
+        temp0Retry = true;
+        messages.push({ role: "assistant", content });
+        messages.push({
+          role: "user",
+          content: "You only looked at files but did not create or change anything yet. If this task asks you to make or change something, keep going with your tools now and finish it. If it was only a question, answer it now.",
+        });
+        logger.write({ type: "nudge", kind: "keep-going", trigger: content.slice(0, 200) });
         continue;
       }
       messages.push({ role: "assistant", content });
@@ -127,6 +162,7 @@ export async function runTurn(
       }
 
       hooks.onToolStart?.(call.name, args);
+      toolsUsed.add(call.name);
       const result = executeTool(cfg.workspace, call.name, args, { autoApproveBash: true });
       if (result.output.startsWith("NEEDS_APPROVAL: ")) {
         const command = result.output.slice("NEEDS_APPROVAL: ".length);
@@ -171,11 +207,44 @@ export function looksLikeDescribedAction(text: string): boolean {
   const t = text.trim();
   if (t.length < 12) return false;
   if (/what i did:/i.test(t)) return true;
-  if (/\b(created|wrote|made|added|updated|edited|saved|deleted)\b/i.test(t)) return true;
+  if (
+    /\b(created|wrote|made|added|updated|edited|saved|deleted|writing|creating|adding|updating|editing|saving|deleting|making)\b/i.test(
+      t,
+    )
+  )
+    return true;
   return (
     /\b(let's|i'll|i will|i'm going to)\b/i.test(t) &&
     /\b(create|write|make|add|update|edit|save|run|delete|fix)\b/i.test(t)
   );
+}
+
+/**
+ * True when every tool used this turn only inspects the workspace (no writes).
+ * Exported for selftests.
+ */
+export function usedOnlyReadOnlyTools(toolsUsed: Set<string>): boolean {
+  if (toolsUsed.size === 0) return false;
+  for (const t of toolsUsed) {
+    if (t !== "list_files" && t !== "read_file" && t !== "search_files") return false;
+  }
+  return true;
+}
+
+/**
+ * True when the message reads like the model's final completion summary
+ * (the beginner prompt requires the "What I did:" footer). Exported for selftests.
+ */
+export function looksLikeCompletionSummary(text: string): boolean {
+  return /what i did:/i.test(text.trim());
+}
+
+/**
+ * True when the model emits a hallucinated tool result instead of calling a
+ * tool (e.g. "<tool_response>…</tool_response>"). Exported for selftests.
+ */
+export function looksLikeFakeToolResponse(text: string): boolean {
+  return /<\/?(tool_response|tool_result)\b/i.test(text);
 }
 
 export function toolLabel(name: string): string {

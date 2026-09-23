@@ -180,10 +180,25 @@ export function executeTool(
             output: `Cannot write '${args.path}': it is already a FOLDER. Write to a file inside it instead, e.g. '${args.path}/my-file.txt'.`,
           };
         }
+        const existed = existsSync(abs);
+        const beforeLines = existed ? readFileSync(abs, "utf8").split("\n").length : 0;
+        const content = String(args.content ?? "");
         mkdirSync(parent, { recursive: true });
         backupFile(workspace, abs);
-        writeFileSync(abs, String(args.content ?? ""), "utf8");
-        return { ok: true, output: `Wrote ${args.path}` };
+        writeFileSync(abs, content, "utf8");
+        let output = `Wrote ${args.path}`;
+        if (existed) {
+          const afterLines = content.split("\n").length;
+          output += ` (replaced: was ${beforeLines} lines, now ${afterLines})`;
+          if (/\.json$/i.test(String(args.path))) {
+            try {
+              JSON.parse(content);
+            } catch {
+              output += "\nWARNING: this file is not valid JSON — write it again with correct JSON.";
+            }
+          }
+        }
+        return { ok: true, output };
       }
       case "delete_file": {
         const abs = safePath(workspace, args.path as string);
@@ -199,7 +214,10 @@ export function executeTool(
         const oldText = String(args.old_text ?? "");
         const newText = String(args.new_text ?? "");
         if (!src.includes(oldText)) {
-          return { ok: false, output: "Could not find that text in the file. Nothing was changed." };
+          return {
+            ok: false,
+            output: "Could not find that text in the file. Nothing was changed. Tip: read the file first, then use write_file with the complete new content instead.",
+          };
         }
         backupFile(workspace, abs);
         writeFileSync(abs, src.replace(oldText, newText), "utf8");
@@ -221,7 +239,19 @@ export function executeTool(
             /* skip unreadable */
           }
         }
-        return { ok: true, output: hits.length ? hits.join("\n") : `No matches for "${query}".` };
+        if (hits.length) return { ok: true, output: hits.join("\n") };
+        // No content matches — but maybe the query was a file NAME. Point the
+        // model at read_file instead of letting it conclude the file is missing.
+        const nameHit = entries
+          .filter((x) => !x.isDir)
+          .some((x) => x.rel.toLowerCase().includes(query.toLowerCase()));
+        if (nameHit) {
+          return {
+            ok: true,
+            output: `No file contains "${query}" in its text, but a file is named like it: use read_file on it to see its contents.`,
+          };
+        }
+        return { ok: true, output: `No matches for "${query}".` };
       }
       case "run_command": {
         const command = String(args.command ?? "");
