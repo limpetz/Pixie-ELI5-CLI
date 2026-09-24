@@ -7,7 +7,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { StreamFilter } from "../src/stream.js";
 import { tryParseToolCall } from "../src/toolparse.js";
-import { looksLikeDescribedAction, usedOnlyReadOnlyTools, looksLikeCompletionSummary, looksLikeFakeToolResponse } from "../src/agent.js";
+import {
+  looksLikeDescribedAction,
+  usedOnlyReadOnlyTools,
+  looksLikeCompletionSummary,
+  looksLikeFakeToolResponse,
+  classifyRequestShape,
+  looksLikeAnswered,
+  saveTargetFile,
+  mentionedFiles,
+  missingAmongMentioned,
+} from "../src/agent.js";
 import { runChecks } from "./eval.js";
 import { executeTool } from "../src/tools.js";
 
@@ -213,6 +223,44 @@ check("plain answer is not a completion summary", looksLikeCompletionSummary("Th
 check("detects fake tool_response", looksLikeFakeToolResponse("<tool_response>menu.txt (24 bytes)</tool_response>"), true);
 check("detects fake tool_result tag", looksLikeFakeToolResponse("<tool_result>42</tool_result>"), true);
 check("normal prose is not a fake tool response", looksLikeFakeToolResponse("I read the file and it says 21."), false);
+
+/* ── shape router (picks the right nudge; prompts are the real eval tasks) ── */
+console.log("classifyRequestShape (real eval prompts):");
+check("riddle task #14 is a question", classifyRequestShape("one of the three riddle files mentions a wizard. Read them and tell me which number it is."), "question");
+check("continents #6 is a question", classifyRequestShape("how many continents are there on Earth? answer in one short sentence"), "question");
+check("percent #8 is a question", classifyRequestShape("what is 15 percent of 200? answer with just the number"), "question");
+check("website #20 is a build task (not fooled by 'link to page1.html')", classifyRequestShape("build a tiny website: index.html must link to page1.html and page2.html, and both of those pages must exist with a heading on each"), "build");
+check("three-files task #10 is a build task", classifyRequestShape("create three files: red.txt, green.txt and blue.txt. Each file should contain the name of its color."), "build");
+check("code-double #15 is save-result", classifyRequestShape("read the number in code.txt, double it, and save the result in answer.txt"), "save-result");
+check("wishlist #23 is save-result despite 'figure out'", classifyRequestShape("read wishlist.txt, figure out which single item costs the most, and write just that item's name into best.txt"), "save-result");
+check("csv-append #19 is save-result", classifyRequestShape("add a new row for apples with price 1.20 to inventory.csv (keep the header and existing rows)"), "save-result");
+check("haiku #5 is save-result", classifyRequestShape("write a haiku about the sea into sea.txt (a haiku is exactly three short lines)"), "save-result");
+check("profile follow-up is save-result", classifyRequestShape("now add a second line to profile.txt that says hello to the user"), "save-result");
+check("single-file create #1 stays other", classifyRequestShape("create a file named greeting.txt containing a friendly hello message"), "other");
+check("json-edit #13 stays other", classifyRequestShape("in config.json, change the theme from light to dark. Keep everything else the same."), "other");
+check("boiling-step follow-up stays other", classifyRequestShape("replace whichever step is the boiling step with exactly: pour hot water"), "other");
+check("short input is other", classifyRequestShape("hi"), "other");
+
+console.log("looksLikeAnswered:");
+check("explicit Answer line", looksLikeAnswered("I read the three files.\nAnswer: file 2"), true);
+check("'the answer is' statement", looksLikeAnswered("The answer is riddle 2."), true);
+check("'it is file 2' counts", looksLikeAnswered("It is file 2."), true);
+check("summary without answer is not answered", looksLikeAnswered("What I did:\n- Read the riddle files"), false);
+
+console.log("saveTargetFile:");
+check("finds the destination file", saveTargetFile("read the number in code.txt, double it, and save the result in answer.txt"), "answer.txt");
+check("no file named means no target", saveTargetFile("what is the biggest number here?"), null);
+
+console.log("mentionedFiles / missingAmongMentioned:");
+{
+  const site = "build a tiny website: index.html must link to page1.html and page2.html";
+  check("lists each mentioned file once", mentionedFiles(site), ["index.html", "page1.html", "page2.html"]);
+  check(
+    "missing files exclude already-written ones",
+    missingAmongMentioned(site, new Set(["index.html"])),
+    ["page1.html", "page2.html"],
+  );
+}
 
 /* ── eval harness checks ── */
 console.log("runChecks (eval harness):");

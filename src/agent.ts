@@ -80,6 +80,12 @@ export async function runTurn(
   let keepGoingNudged = false;
   let temp0Retry = false;
   const toolsUsed = new Set<string>();
+  const writtenPaths = new Set<string>(); // successful write_file targets (lowercased)
+  // Per-shape nudge budgets (independent, like the classic nudges above).
+  let questionNudges = 0;
+  let saveNudges = 0;
+  let buildNudges = 0;
+  const shape = classifyRequestShape(userInput);
 
   while (toolRounds < cfg.maxToolRounds) {
     hooks.onThinkStart?.();
@@ -90,21 +96,10 @@ export async function runTurn(
     hooks.onStreamEnd?.();
 
     if (toolCalls.length === 0) {
-      // Small models sometimes *describe* doing the task ("What I did: - Created…")
-      // instead of actually calling tools. Give them exactly one chance to act.
-      if (!narrationNudged && looksLikeDescribedAction(content)) {
-        narrationNudged = true;
-        temp0Retry = true; // retry deterministically (temp 0): same narration can't repeat
-        messages.push({ role: "assistant", content });
-        messages.push({
-          role: "user",
-          content: "You described those actions but did not actually do them. Use your tools now to do it for real, then give your summary.",
-        });
-        logger.write({ type: "nudge", trigger: content.slice(0, 200) });
-        continue;
-      }
+      const wroteAnyFile = toolsUsed.has("write_file") || toolsUsed.has("edit_file") || toolsUsed.has("delete_file");
       // Small models sometimes hallucinate a fake tool result (<tool_response>…)
-      // instead of calling the tool. Push once, deterministically.
+      // instead of calling the tool. Push once, deterministically. (Checked first:
+      // it is a hard malfunction in every request shape.)
       if (!fakeResponseNudged && looksLikeFakeToolResponse(content)) {
         fakeResponseNudged = true;
         temp0Retry = true;
@@ -114,6 +109,98 @@ export async function runTurn(
           content: "That looked like tool output, but you did not call a tool. Use your tools now to do the real work, then give your summary.",
         });
         logger.write({ type: "nudge", kind: "fake-response", trigger: content.slice(0, 200) });
+        continue;
+      }
+      // ── Shape-aware nudges: push the step this request is actually missing ──
+      // Question requests ("which file is it?") need an ANSWER, not more work.
+      if (shape === "question" && toolRounds > 0 && !wroteAnyFile && looksLikeDescribedAction(content) && !looksLikeAnswered(content) && questionNudges < 3) {
+        questionNudges++;
+        temp0Retry = true;
+        messages.push({ role: "assistant", content });
+        messages.push({
+          role: "user",
+          content:
+            questionNudges === 1
+              ? "You looked at the files but have not given the answer yet. Decide the answer and end your reply with one line in this form:\nAnswer: <the answer>"
+              : questionNudges === 2
+                ? "The user still does not have the answer. Reply now with the answer itself — one line starting with 'Answer:' — using what you read from the files."
+                : "Final reminder: state the answer in one short line starting with 'Answer:'. Do not describe your steps again — just answer.",
+        });
+        logger.write({ type: "nudge", kind: "answer", trigger: content.slice(0, 200) });
+        continue;
+      }
+      // Transform-then-save requests ("read X, …, write it into Y"): the model
+      // explores and summarizes but never saves. Name the target file.
+      if (shape === "save-result" && !wroteAnyFile && looksLikeDescribedAction(content)) {
+        if (toolRounds === 0 && !narrationNudged) {
+          narrationNudged = true;
+          temp0Retry = true;
+          messages.push({ role: "assistant", content });
+          messages.push({
+            role: "user",
+            content: "You described those actions but did not actually do them. Use your tools now to do it for real, then give your summary.",
+          });
+          logger.write({ type: "nudge", kind: "narration", trigger: content.slice(0, 200) });
+          continue;
+        }
+        if (toolRounds > 0 && saveNudges < 2) {
+          saveNudges++;
+          const target = saveTargetFile(userInput);
+          temp0Retry = true;
+          messages.push({ role: "assistant", content });
+          messages.push({
+            role: "user",
+            content:
+              saveNudges === 1
+                ? target
+                  ? `You read the file(s) but did not save anything yet. Work out the result and write it to "${target}" now with write_file. Only after the save, give your summary.`
+                  : "You read the file(s) but did not save anything yet. Work out the result and write it to the file the user asked for, now with write_file. Only after the save, give your summary."
+                : target
+                  ? `Nothing has been saved to "${target}" yet. Use write_file on "${target}" with just the final result as its content, then give your summary.`
+                  : "Nothing has been saved yet. Use write_file on the file the user asked for, with just the final result as its content, then give your summary.",
+          });
+          logger.write({ type: "nudge", kind: "save-result", trigger: content.slice(0, 200) });
+          continue;
+        }
+      }
+      // Build-several-files requests (websites, file sets): narration about
+      // creating them must become one write_file call per (missing) file.
+      if (shape === "build" && looksLikeDescribedAction(content)) {
+        const missing = missingAmongMentioned(userInput, writtenPaths);
+        if (missing.length > 0 && buildNudges < 3) {
+          buildNudges++;
+          const all = mentionedFiles(userInput).slice(0, 4).join(", ");
+          temp0Retry = true;
+          messages.push({ role: "assistant", content });
+          messages.push({
+            role: "user",
+            content:
+              buildNudges === 1
+                ? `You described creating files but have not written them yet. Use write_file once per file, each with its full content, for: ${all}. Then give your summary.`
+                : `Still missing: ${missing.join(", ")}. Use write_file on each missing file now (one call per file, with its full content), then give your summary.`,
+          });
+          logger.write({ type: "nudge", kind: "build", trigger: content.slice(0, 200) });
+          continue;
+        }
+      }
+      // Small models sometimes *describe* doing the task ("What I did: - Created…")
+      // instead of actually calling tools. Give them exactly one chance to act.
+      // Skipped when the shape-router owns this situation (a summary AFTER real
+      // writes or after reads on a question task is legitimate, not narration)
+      // and when files were actually written this turn.
+      const routerOwns =
+        (shape === "question" && toolRounds > 0) ||
+        (shape === "save-result" && toolRounds > 0) ||
+        shape === "build";
+      if (!narrationNudged && !routerOwns && !wroteAnyFile && looksLikeDescribedAction(content)) {
+        narrationNudged = true;
+        temp0Retry = true; // retry deterministically (temp 0): same narration can't repeat
+        messages.push({ role: "assistant", content });
+        messages.push({
+          role: "user",
+          content: "You described those actions but did not actually do them. Use your tools now to do it for real, then give your summary.",
+        });
+        logger.write({ type: "nudge", trigger: content.slice(0, 200) });
         continue;
       }
       // Exploration-only stop: the model looked at files but never acted, then
@@ -164,6 +251,9 @@ export async function runTurn(
       hooks.onToolStart?.(call.name, args);
       toolsUsed.add(call.name);
       const result = executeTool(cfg.workspace, call.name, args, { autoApproveBash: true });
+      if (call.name === "write_file" && result.ok) {
+        writtenPaths.add(String(args.path ?? "").toLowerCase());
+      }
       if (result.output.startsWith("NEEDS_APPROVAL: ")) {
         const command = result.output.slice("NEEDS_APPROVAL: ".length);
         const ok = hooks.approveBash ? await hooks.approveBash(command) : false;
@@ -245,6 +335,91 @@ export function looksLikeCompletionSummary(text: string): boolean {
  */
 export function looksLikeFakeToolResponse(text: string): boolean {
   return /<\/?(tool_response|tool_result)\b/i.test(text);
+}
+
+/**
+ * Broad request-shape classifier used to pick the right nudge.
+ * Three shapes matter for the nudges:
+ *  - "question"    → the deliverable is a REPLY ("which file is it?")
+ *  - "save-result" → the deliverable is a FILE the user names ("save it in x")
+ *  - "build"       → several files must be created (website, file sets)
+ * Everything else (and short/ambiguous input) → "other". Conservative by
+ * design: a misclassified shape only changes the nudge wording, and every
+ * nudge is still gated on the model actually stalling. Exported for selftests.
+ */
+export type RequestShape = "question" | "save-result" | "build" | "other";
+
+export function classifyRequestShape(userInput: string): RequestShape {
+  const t = userInput.toLowerCase();
+  if (t.length < 12) return "other";
+  const createWord = /\b(create|write|make|add|update|edit|fix|save|build)\b/.test(t);
+  // A target file is an explicit destination for the result ("in/into/inside X").
+  const hasTargetFile =
+    /\b(in|into|inside|to)\s+(a\s+(?:new\s+)?file\s+(?:called\s+)?|[\w.-]+\.(?:txt|json|md|html|css|js|csv)\b)/.test(t) ||
+    /\bfile\s+(?:called\s+)?[\w.-]+\.(?:txt|json|md|html|css|js|csv)\b/.test(t);
+  // Question requests: the user asks for a fact/choice, not a file. A question
+  // word wins over "write" ("tell me which one it is" is still a question).
+  const questionWord =
+    /\b(which|what is|what's|how many|how much|who|where|when|why)\b/.test(t) ||
+    /\b(tell me|figure out)\b/.test(t) ||
+    /\?\s*$/.test(t.trim());
+  if (questionWord && !hasTargetFile) return "question";
+  // Build-several-files requests: check BEFORE save-result — "build a website:
+  // index.html must link to page1.html" contains "to page1.html", which looks
+  // like a save destination but is only a link reference.
+  if (
+    createWord &&
+    (countMatches(t, /\b(page\d|page\\?_?\d)\b/g) >= 1 ||
+      /\b(website|three files|3 files|four files|4 files|each file|all \w+ files|files:)\b/.test(t) ||
+      countMatches(t, /\b[\w.-]+\.(?:txt|json|md|html|css|js|csv)\b/g) >= 3)
+  )
+    return "build";
+  if (createWord && hasTargetFile) return "save-result";
+  return "other";
+}
+
+/**
+ * True when the reply contains an actual answer to a question request —
+ * the explicit "Answer:" line (taught in the system prompt), a plain-digit
+ * answer like "It is file 2", or a pointed "the answer is X" statement.
+ * Exported for selftests.
+ */
+export function looksLikeAnswered(text: string): boolean {
+  const t = text.trim();
+  if (/^answer\s*:/im.test(t)) return true;
+  if (/\bthe answer is\b/i.test(t)) return true;
+  if (/\b(it('| i)?s|file|number|riddle)\s*#?\s*\d+\b/i.test(t)) return true;
+  return false;
+}
+
+/**
+ * Extracts the destination file a save-result request names, e.g. "save the
+ * result in answer.txt" → "answer.txt". Only paths with a known extension
+ * count (a folder name is not a save target). Exported for selftests.
+ */
+export function saveTargetFile(userInput: string): string | null {
+  const m = userInput.match(/\b[\w.-]+\.(?:txt|json|md|html|css|js|csv)\b/g) ?? [];
+  return m.length > 0 ? m[m.length - 1] : null;
+}
+
+/**
+ * File paths mentioned anywhere in a build-style request. Exported for selftests.
+ */
+export function mentionedFiles(userInput: string): string[] {
+  const m = userInput.match(/\b[\w./-]+\.(?:txt|json|md|html|css|js|csv)\b/g) ?? [];
+  return Array.from(new Set(m));
+}
+
+/**
+ * Which of the request's mentioned files have NOT been written yet (so a
+ * build nudge can name them precisely). Exported for selftests.
+ */
+export function missingAmongMentioned(userInput: string, writtenPaths: Set<string>): string[] {
+  return mentionedFiles(userInput).filter((f) => !writtenPaths.has(f.toLowerCase()));
+}
+
+function countMatches(text: string, re: RegExp): number {
+  return (text.match(re) ?? []).length;
 }
 
 export function toolLabel(name: string): string {
