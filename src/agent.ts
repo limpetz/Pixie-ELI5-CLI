@@ -79,6 +79,7 @@ export async function runTurn(
   let narrationNudged = false;
   let fakeResponseNudged = false;
   let fakeWriteNudged = false;
+  let giveUpNudges = 0;
   let keepGoingNudged = false;
   let temp0Retry = false;
   const toolsUsed = new Set<string>();
@@ -112,6 +113,27 @@ export async function runTurn(
 
     if (toolCalls.length === 0) {
       const wroteAnyFile = toolsUsed.has("write_file") || toolsUsed.has("edit_file") || toolsUsed.has("delete_file");
+      // Give-up refusal: the model read real files and then claims the task
+      // "can't be completed" because the files "don't exist" (eval #23/#24
+      // class — the reads SUCCEEDED; the refusal is hallucinated). Runtime
+      // complement to the round-10 training data. Checked before every other
+      // nudge: a refusal is unambiguous in every request shape, and by the
+      // time it appears the shape-router has usually spent its budget. Push
+      // up to twice, deterministically; ground the push in what WAS read.
+      if (!wroteAnyFile && toolRounds > 0 && looksLikeGiveUp(content) && giveUpNudges < 2) {
+        giveUpNudges++;
+        temp0Retry = true;
+        messages.push({ role: "assistant", content });
+        messages.push({
+          role: "user",
+          content:
+            giveUpNudges === 1
+              ? `Your tool calls DID work — the files exist and you read them. Do not apologize and do not stop. Finish the task now: use write_file with the requested content, then give your summary.`
+              : `The files are real: your earlier reads returned their content. Use write_file now on the file the user asked for with the correct content, then summarize. There is nothing missing.`,
+        });
+        logger.write({ type: "nudge", kind: "give-up", trigger: content.slice(0, 200) });
+        continue;
+      }
       // Small models sometimes hallucinate a fake tool result (<tool_response>…)
       // instead of calling the tool. Push once, deterministically. (Checked first:
       // it is a hard malfunction in every request shape.)
@@ -370,6 +392,19 @@ export function looksLikeCompletionSummary(text: string): boolean {
  */
 export function looksLikeFakeToolResponse(text: string): boolean {
   return /<\/?(tool_response|tool_result)\b/i.test(text);
+}
+
+/**
+ * True when the reply is a give-up refusal: the model claims the task cannot
+ * be done because files/information "don't exist" — even though the tools may
+ * have just read them (eval #23/#24 class: reads succeed, then "I can't
+ * complete this task as it involves files that don't exist"). Deliberately
+ * narrow: requires an apology/refusal stem AND an existence complaint, so a
+ * legitimate "this file doesn't exist yet, want me to create it?" does not
+ * match (no refusal stem there). Exported for selftests.
+ */
+export function looksLikeGiveUp(text: string): boolean {
+  return /can'?t (?:complete|do|help)|cannot (?:complete|do|help)|unable to (?:complete|do|help)/i.test(text) && /don'?t exist|does(?:n'?t| not) exist|not (?:found|exist)|no (?:such )?files?/i.test(text);
 }
 
 /**

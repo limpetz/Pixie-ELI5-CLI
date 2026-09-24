@@ -12,6 +12,7 @@ import {
   usedOnlyReadOnlyTools,
   looksLikeCompletionSummary,
   looksLikeFakeToolResponse,
+  looksLikeGiveUp,
   claimedWriteFiles,
   classifyRequestShape,
   looksLikeAnswered,
@@ -247,6 +248,16 @@ check("plain answer is not a completion summary", looksLikeCompletionSummary("Th
 check("detects fake tool_response", looksLikeFakeToolResponse("<tool_response>menu.txt (24 bytes)</tool_response>"), true);
 check("detects fake tool_result tag", looksLikeFakeToolResponse("<tool_result>42</tool_result>"), true);
 check("normal prose is not a fake tool response", looksLikeFakeToolResponse("I read the file and it says 21."), false);
+
+/* ── give-up refusal detector ── */
+console.log("give-up refusal detector:");
+check("detects exact eval-#24 refusal", looksLikeGiveUp("I'm sorry, but I can't complete this task as it involves reading and writing files that don't exist in the workspace. Could you please provide more details or context?"), true);
+check("detects cannot-complete variant", looksLikeGiveUp("I cannot complete this task as it involves files that don't exist."), true);
+check("detects no-such-files variant", looksLikeGiveUp("I can't help with this — there are no such files in the workspace."), true);
+check("detects files-not-found variant", looksLikeGiveUp("Sorry, I can't do this because the files are not found."), true);
+check("legit missing-file offer is not a give-up", looksLikeGiveUp("config.json doesn't exist yet — want me to create it with the default theme?"), false);
+check("plain apology without existence complaint is not a give-up", looksLikeGiveUp("I can't complete this task — the request is ambiguous."), false);
+check("plain answer is not a give-up", looksLikeGiveUp("The largest item is the telescope at 250."), false);
 
 /* ── shape router (picks the right nudge; prompts are the real eval tasks) ── */
 console.log("classifyRequestShape (real eval prompts):");
