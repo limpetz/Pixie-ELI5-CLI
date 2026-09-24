@@ -1,6 +1,6 @@
 import type { ChatMessage, ChatResponse, ProviderConfig, TokenCallback, ToolSchema } from "./types.js";
 import { StreamFilter } from "./stream.js";
-import { tryParseToolCall } from "./toolparse.js";
+import { tryParseToolCall, stripNarratedCall } from "./toolparse.js";
 
 /** Maps our internal messages to the OpenAI chat wire format. */
 function toOpenAIMessages(messages: ChatMessage[]): Record<string, unknown>[] {
@@ -151,8 +151,10 @@ export async function openaiChat(
     const parsed = tryParseToolCall(content);
     if (parsed) {
       toolCalls.push({ id: `call_0_${Date.now()}`, name: parsed.name, args: parsed.args });
-      content = content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
-      if (content.trim().startsWith("{")) content = "";
+      // Keep only prose: drop the narrated call AND any fake tool output the
+      // model invented after it (```json result blocks, "# Response" trailers),
+      // so a hallucinated result never enters the conversation history.
+      content = stripNarratedCall(content);
     }
   }
   return { content, toolCalls };

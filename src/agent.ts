@@ -1,6 +1,7 @@
 import type { ChatMessage, PixieConfig, TokenCallback, ToolCallRequest } from "./types.js";
 import { chat } from "./llm.js";
 import { TOOL_SCHEMAS, executeTool } from "./tools.js";
+import { tryParseToolCall } from "./toolparse.js";
 import type { SessionLogger } from "./session.js";
 
 export const BEGINNER_SYSTEM_PROMPT = `You are Pixie, a super-friendly coding helper. You explain things ELI5 — "explain like I'm 5" — but you still get real work done.
@@ -95,6 +96,19 @@ export async function runTurn(
       : await chat(cfg, messages, TOOL_SCHEMAS, hooks.onToken);
     temp0Retry = false;
     hooks.onStreamEnd?.();
+
+    // The backends already re-parse narrated calls (bare JSON, <tool_call>,
+    // fenced). This belt-and-braces pass catches a narrated call that arrives
+    // as *content* with toolCalls still empty — e.g. the parser rejected a
+    // slightly malformed call while narration around it survived. Executing
+    // it directly beats nudging the model to emit it again (#8/#23 class).
+    if (toolCalls.length === 0) {
+      const recovered = tryParseToolCall(content);
+      if (recovered && TOOL_SCHEMAS.some((t) => t.name === recovered.name)) {
+        toolCalls.push({ id: `call_0_${Date.now()}`, name: recovered.name, args: recovered.args });
+        logger.write({ type: "nudge", kind: "narrated-call-recovered", trigger: content.slice(0, 200) });
+      }
+    }
 
     if (toolCalls.length === 0) {
       const wroteAnyFile = toolsUsed.has("write_file") || toolsUsed.has("edit_file") || toolsUsed.has("delete_file");

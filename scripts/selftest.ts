@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { StreamFilter } from "../src/stream.js";
-import { tryParseToolCall } from "../src/toolparse.js";
+import { tryParseToolCall, stripNarratedCall } from "../src/toolparse.js";
 import {
   looksLikeDescribedAction,
   usedOnlyReadOnlyTools,
@@ -127,6 +127,29 @@ check(
   "write_file",
 );
 
+/* ── dataset extraction ── */
+/* ── narrated tool calls with trailing fake results (task-8 failure) ── */
+console.log("narrated-call recovery (bare call + fake ```json result):");
+{
+  // Exactly the reply that broke eval task 8: the model narrated the write,
+  // then hallucinated a "# Response" trailer with a fake ```json result.
+  const broken = '{"name": "write_file", "arguments": {"path":"photos/album.txt","content":"- Beach sunset\\n- Snowy mountains\\n- Rainbow over the lake"}}\n\n# Response\n\n```json\n{\n  "lines_added": 3,\n  "lines_removed": 0\n}\n```\n\nWhat I did:\n- Created photos/album.txt with three photo ideas.';
+  const parsed = tryParseToolCall(broken);
+  check("recovers the call before a fake-result fence", parsed?.name, "write_file");
+  check(
+    "recovered args keep the real content",
+    (parsed?.args as { path?: string } | undefined)?.path,
+    "photos/album.txt",
+  );
+  check("fence holding a call still parses", tryParseToolCall('```json\n{"name": "write_file", "arguments": {"path": "a.txt", "content": "x"}}\n```')?.name, "write_file");
+  check("plain prose still parses to nothing", tryParseToolCall("The largest item is the telescope at 250."), null);
+  check("fake-result fence alone is not a call", tryParseToolCall('```json\n{"lines_added": 3}\n```'), null);
+
+  const stripped = stripNarratedCall(broken);
+  check("strip removes call, fake result, and trailer", stripped === "", true);
+  check("strip keeps prose that came before the call", stripNarratedCall("Sure!\n\n{" + broken.slice(1)).startsWith("Sure!"), true);
+  check("strip leaves plain prose untouched", stripNarratedCall("The largest item is the telescope at 250."), "The largest item is the telescope at 250.");
+}
 /* ── dataset extraction ── */
 console.log("dataset extraction:");
 {

@@ -17,6 +17,7 @@
     "build-dataset": "tsx scripts/build-dataset.ts",
     "build-round8": "tsx scripts/build-round8.ts",
     "build-round9": "tsx scripts/build-round9.ts",
+    "build-round10": "tsx scripts/build-round10.ts",
     "prepare-training": "tsx scripts/prepare-training.ts",
     "distill": "tsx scripts/distill.ts",
     "eval": "tsx scripts/eval.ts",
