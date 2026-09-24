@@ -77,10 +77,11 @@ export async function runTurn(
   let autoApprove = hooks.autoRun ?? !cfg.beginnerMode;
   let narrationNudged = false;
   let fakeResponseNudged = false;
+  let fakeWriteNudged = false;
   let keepGoingNudged = false;
   let temp0Retry = false;
   const toolsUsed = new Set<string>();
-  const writtenPaths = new Set<string>(); // successful write_file targets (lowercased)
+  const writtenPaths = new Set<string>(); // successful write/edit/delete targets (lowercased)
   // Per-shape nudge budgets (independent, like the classic nudges above).
   let questionNudges = 0;
   let saveNudges = 0;
@@ -109,6 +110,26 @@ export async function runTurn(
           content: "That looked like tool output, but you did not call a tool. Use your tools now to do the real work, then give your summary.",
         });
         logger.write({ type: "nudge", kind: "fake-response", trigger: content.slice(0, 200) });
+        continue;
+      }
+      // Phantom-write check: the reply CLAIMS a file was written/edited/saved
+      // but no write tool ever succeeded this turn (#23: "- Wrote 'headphones'
+      // to 'best.txt'" with zero write_file calls). One deterministic push to
+      // actually perform the claimed write. Checked before the shape router:
+      // like a fake tool response, this is a hard malfunction in every request
+      // shape, and the shape-router must not spend its budget on it first.
+      // Skipped when run_command was used — it may have written files we cannot
+      // track.
+      const claimed = claimedWriteFiles(content).filter((f) => !writtenPaths.has(f));
+      if (!fakeWriteNudged && claimed.length > 0 && !toolsUsed.has("run_command")) {
+        fakeWriteNudged = true;
+        temp0Retry = true;
+        messages.push({ role: "assistant", content });
+        messages.push({
+          role: "user",
+          content: `Your summary says '${claimed[0]}' was written, but no write actually happened. Use write_file to create '${claimed[0]}' with the correct content now, then give your summary.`,
+        });
+        logger.write({ type: "nudge", kind: "fake-write", trigger: content.slice(0, 200) });
         continue;
       }
       // ── Shape-aware nudges: push the step this request is actually missing ──
@@ -251,7 +272,7 @@ export async function runTurn(
       hooks.onToolStart?.(call.name, args);
       toolsUsed.add(call.name);
       const result = executeTool(cfg.workspace, call.name, args, { autoApproveBash: true });
-      if (call.name === "write_file" && result.ok) {
+      if ((call.name === "write_file" || call.name === "edit_file" || call.name === "delete_file") && result.ok) {
         writtenPaths.add(String(args.path ?? "").toLowerCase());
       }
       if (result.output.startsWith("NEEDS_APPROVAL: ")) {
@@ -335,6 +356,25 @@ export function looksLikeCompletionSummary(text: string): boolean {
  */
 export function looksLikeFakeToolResponse(text: string): boolean {
   return /<\/?(tool_response|tool_result)\b/i.test(text);
+}
+
+/**
+ * File paths the reply CLAIMS were written, e.g. "- Wrote 'best.txt'",
+ * "I created shopping.txt", "saved the result to answer.txt". Past-tense only
+ * — "I'll write…" is a plan, not a claim — and negations ("has not been
+ * written") are ignored. Deliberately narrow so ordinary narration about
+ * existing files cannot false-positive. Exported for selftests.
+ */
+export function claimedWriteFiles(text: string): string[] {
+  const out: string[] = [];
+  const re = /\b(?:wrote|written|created|saved)\s+(?:the\s+)?(?:file\s+)?(?:to\s+)?['"`]?([\w./\\-]+\.(?:txt|json|md|html|css|js|csv))['"`]?/gi;
+  for (const m of text.matchAll(re)) {
+    const lineStart = text.lastIndexOf("\n", m.index ?? 0) + 1;
+    const line = text.slice(lineStart, (m.index ?? 0) + 30);
+    if (/(?:\bnot\b|\bnever\b|n't\b)/i.test(line)) continue;
+    out.push(m[1].toLowerCase());
+  }
+  return Array.from(new Set(out));
 }
 
 /**

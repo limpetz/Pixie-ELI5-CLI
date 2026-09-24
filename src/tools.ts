@@ -153,6 +153,21 @@ export function executeTool(
     switch (name) {
       case "list_files": {
         const target = safePath(workspace, args.path as string | undefined);
+        // A missing path must say so explicitly — walking it produces the same
+        // empty result as an empty folder, which once let the model answer a
+        // wrong premise ("the riddle files don't exist") instead of retrying.
+        if (!existsSync(target)) {
+          return {
+            ok: false,
+            output: `Path not found: ${args.path} — nothing exists at that name. Use list_files (no path) to see what actually exists.`,
+          };
+        }
+        if (statSync(target).isFile()) {
+          return {
+            ok: true,
+            output: `${args.path} is a file, not a folder. Use read_file on it to see its content.`,
+          };
+        }
         const out: WalkEntry[] = [];
         walk(target, target, out, 0);
         const lines = out.map((e) => (e.isDir ? `${e.rel}/` : `${e.rel} (${e.size} bytes)`));
@@ -160,8 +175,17 @@ export function executeTool(
       }
       case "read_file": {
         const abs = safePath(workspace, args.path as string);
-        if (!existsSync(abs)) return { ok: false, output: `File not found: ${args.path}` };
+        if (!existsSync(abs))
+          return {
+            ok: false,
+            output: `File not found: ${args.path} — nothing exists at that name. Use list_files (no path) to see what actually exists.`,
+          };
         const st = statSync(abs);
+        if (st.isDirectory())
+          return {
+            ok: false,
+            output: `Cannot read '${args.path}': it is a FOLDER, not a file. Use list_files on it to see what is inside.`,
+          };
         if (st.size > 512 * 1024) return { ok: false, output: "File is too large to read (over 512 KB)." };
         return { ok: true, output: readFileSync(abs, "utf8") };
       }

@@ -12,6 +12,7 @@ import {
   usedOnlyReadOnlyTools,
   looksLikeCompletionSummary,
   looksLikeFakeToolResponse,
+  claimedWriteFiles,
   classifyRequestShape,
   looksLikeAnswered,
   saveTargetFile,
@@ -370,6 +371,59 @@ console.log("scaffold-v2 tool signals:");
   );
   const s2 = executeTool(dir, "search_files", { query: "zzz-nothing" }, opts);
   check("truly empty search stays plain", s2.output.includes('No matches for'), true);
+
+  rmSync(dir, { recursive: true, force: true });
+}
+
+/* ── wrong-premise tool outputs + phantom-write detector (scaffold-v2.2) ── */
+console.log("wrong-premise outputs + phantom-write detector:");
+{
+  const dir = mkdtempSync(join(tmpdir(), "pixie-wrongpremise-"));
+  const opts = { autoApproveBash: false };
+
+  const l1 = executeTool(dir, "list_files", { path: "riddles" }, opts);
+  check(
+    "list_files on a MISSING path says Path not found",
+    l1.ok === false && l1.output.includes("Path not found") && l1.output.includes("list_files"),
+    true,
+  );
+
+  mkdirSync(join(dir, "emptydir"), { recursive: true });
+  const l2 = executeTool(dir, "list_files", { path: "emptydir" }, opts);
+  check("list_files on a REAL empty folder still says (empty folder)", l2.output, "(empty folder)");
+
+  writeFileSync(join(dir, "solo.txt"), "hi", "utf8");
+  const l3 = executeTool(dir, "list_files", { path: "solo.txt" }, opts);
+  check(
+    "list_files on a FILE points to read_file",
+    l3.ok === true && l3.output.includes("is a file") && l3.output.includes("read_file"),
+    true,
+  );
+
+  writeFileSync(join(dir, "notes.txt"), "abc", "utf8");
+  const l4 = executeTool(dir, "list_files", {}, opts);
+  check("list_files of the workspace root still lists", l4.output.includes("notes.txt") && l4.output.includes("emptydir/"), true);
+
+  const r1 = executeTool(dir, "read_file", { path: "ghost.txt" }, opts);
+  check(
+    "read_file missing keeps File not found + points to list_files",
+    r1.ok === false && r1.output.includes("File not found") && r1.output.includes("list_files"),
+    true,
+  );
+
+  const r2 = executeTool(dir, "read_file", { path: "emptydir" }, opts);
+  check(
+    "read_file on a FOLDER says it is a folder, points to list_files",
+    r2.ok === false && r2.output.includes("FOLDER") && r2.output.includes("list_files"),
+    true,
+  );
+
+  check("detects Wrote 'x' claim", claimedWriteFiles("What I did:\n- Wrote 'best.txt'"), ["best.txt"]);
+  check("detects created/saved claims", claimedWriteFiles("I created shopping.txt and saved answer.txt"), ["shopping.txt", "answer.txt"]);
+  check("detects was written claim", claimedWriteFiles("The file was written to best.txt successfully."), ["best.txt"]);
+  check("ignores negated claim", claimedWriteFiles("best.txt has not been written yet."), []);
+  check("ignores future-tense plan", claimedWriteFiles("I'll write best.txt next."), []);
+  check("plain reply has no claims", claimedWriteFiles("The largest item is the telescope at 250."), []);
 
   rmSync(dir, { recursive: true, force: true });
 }
