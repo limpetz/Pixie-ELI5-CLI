@@ -175,11 +175,20 @@ export function executeTool(
       }
       case "read_file": {
         const abs = safePath(workspace, args.path as string);
-        if (!existsSync(abs))
+        if (!existsSync(abs)) {
+          const base = basename(String(args.path ?? ""));
+          const atRoot = safePath(workspace, base);
+          if (base && base !== args.path && existsSync(atRoot) && statSync(atRoot).isFile()) {
+            return {
+              ok: false,
+              output: `File not found: ${args.path} — however, '${base}' exists in the workspace. Use read_file on '${base}'.`,
+            };
+          }
           return {
             ok: false,
             output: `File not found: ${args.path} — nothing exists at that name. Use list_files (no path) to see what actually exists.`,
           };
+        }
         const st = statSync(abs);
         if (st.isDirectory())
           return {
@@ -233,7 +242,17 @@ export function executeTool(
       }
       case "edit_file": {
         const abs = safePath(workspace, args.path as string);
-        if (!existsSync(abs)) return { ok: false, output: `File not found: ${args.path}` };
+        if (!existsSync(abs)) {
+          const base = basename(String(args.path ?? ""));
+          const atRoot = safePath(workspace, base);
+          if (base && base !== args.path && existsSync(atRoot) && statSync(atRoot).isFile()) {
+            return {
+              ok: false,
+              output: `File not found: ${args.path} — however, '${base}' exists in the workspace. Use edit_file on '${base}'.`,
+            };
+          }
+          return { ok: false, output: `File not found: ${args.path}` };
+        }
         const src = readFileSync(abs, "utf8");
         const oldText = String(args.old_text ?? "");
         const newText = String(args.new_text ?? "");

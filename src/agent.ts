@@ -193,14 +193,18 @@ export async function runTurn(
       }
       // ── Shape-aware nudges: push the step this request is actually missing ──
       // Question requests ("which file is it?") need an ANSWER, not more work.
+      // But if the model only listed directory entries without reading or searching
+      // any file contents, push it to inspect the files before deciding.
       if (shape === "question" && toolRounds > 0 && !wroteAnyFile && looksLikeDescribedAction(content) && !looksLikeAnswered(content) && questionNudges < 3) {
         questionNudges++;
         temp0Retry = true;
         messages.push({ role: "assistant", content });
+        const hasInspected = toolsUsed.has("read_file") || toolsUsed.has("search_files");
         messages.push({
           role: "user",
-          content:
-            questionNudges === 1
+          content: !hasInspected
+            ? "You have not read or searched the files yet. Use read_file or search_files now to check their contents, then answer."
+            : questionNudges === 1
               ? "You looked at the files but have not given the answer yet. Decide the answer and end your reply with one line in this form:\nAnswer: <the answer>"
               : questionNudges === 2
                 ? "The user still does not have the answer. Reply now with the answer itself — one line starting with 'Answer:' — using what you read from the files."
@@ -243,21 +247,18 @@ export async function runTurn(
           continue;
         }
       }
-      // Build-several-files requests (websites, file sets): narration about
-      // creating them must become one write_file call per (missing) file.
-      if (shape === "build" && looksLikeDescribedAction(content)) {
+      // Build-several-files requests (websites, file sets): small models struggle
+      // to create multiple files at once. Push them to create the next missing file
+      // one at a time using write_file.
+      if (shape === "build" && (looksLikeDescribedAction(content) || !wroteAnyFile)) {
         const missing = missingAmongMentioned(userInput, writtenPaths);
-        if (missing.length > 0 && buildNudges < 3) {
+        if (missing.length > 0 && buildNudges < 6) {
           buildNudges++;
-          const all = mentionedFiles(userInput).slice(0, 4).join(", ");
           temp0Retry = true;
           messages.push({ role: "assistant", content });
           messages.push({
             role: "user",
-            content:
-              buildNudges === 1
-                ? `You described creating files but have not written them yet. Use write_file once per file, each with its full content, for: ${all}. Then give your summary.`
-                : `Still missing: ${missing.join(", ")}. Use write_file on each missing file now (one call per file, with its full content), then give your summary.`,
+            content: `Use write_file now to create '${missing[0]}' with its full content. Do not describe other files yet — call write_file for '${missing[0]}' first.`,
           });
           logger.write({ type: "nudge", kind: "build", trigger: content.slice(0, 200) });
           continue;
@@ -290,9 +291,13 @@ export async function runTurn(
         keepGoingNudged = true;
         temp0Retry = true;
         messages.push({ role: "assistant", content });
+        const hasInspected = toolsUsed.has("read_file") || toolsUsed.has("search_files");
         messages.push({
           role: "user",
-          content: "You only looked at files but did not create or change anything yet. If this task asks you to make or change something, keep going with your tools now and finish it. If it was only a question, answer it now.",
+          content:
+            shape === "question" && !hasInspected
+              ? "You only listed files but have not read or searched them yet. Use read_file or search_files now to check their contents, then answer."
+              : "You only looked at files but did not create or change anything yet. If this task asks you to make or change something, keep going with your tools now and finish it. If it was only a question, answer it now.",
         });
         logger.write({ type: "nudge", kind: "keep-going", trigger: content.slice(0, 200) });
         continue;
