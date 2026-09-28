@@ -1,6 +1,7 @@
 {
   "name": "pixie",
   "version": "0.1.0",
+  "license": "Apache-2.0",
   "description": "Pixie — a local-first AI coding & reasoning agent. Phase 1 of the Pixie model roadmap.",
   "type": "module",
   "engines": {
