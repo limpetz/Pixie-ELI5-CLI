@@ -11,6 +11,19 @@ Tell it what you want in plain language ("make a website about my cat", "fix the
 | 1 | **Pixie Agent** — CLI companion powered by existing models (yours, local & free), with streaming responses | ✅ this repo |
 | 2 | **Pixie Dataset** — every session is logged to JSONL, ready for training | ✅ built in |
 | 3 | **Pixie Model** — QLoRA fine-tune on your GPU: `build-dataset` + training kit included | ✅ scripts ready |
+| 4 | **Scaffold & Guardrail Evolution** — shape router, recovery nudges, wrong-premise signal handling | ✅ current focus (record 64/72) |
+
+## Where We Are Now (Current Progress & Benchmarks)
+
+Pixie is pairing a fine-tuned model (**`pixie-7b-r1`**, QLoRA on `qwen2.5-coder-7b-instruct`) with an intelligent agent runtime (Scaffold v2.2+):
+
+- **Benchmark Score**: **64/72** project record (Core 7/7, Multi 7/9, Hard 6/8) on the 24-task eval suite, up from the base model's 31/72.
+- **Modify Family Tasks**: 94/96 pass rate across append, in-place edit, and JSON/CSV modifications.
+- **Key Scaffold Innovations**:
+  - **Wrong-Premise Signal Handling**: Returns clear `"Path not found"` and actionable tool redirects to avoid models accepting invalid premises.
+  - **Phantom-Write Detector**: Automatically catches responses claiming a file was written without executing a tool call, and commands a real write.
+  - **Apology-Without-Action Recovery**: Catches models apologizing or stalling after not-found errors, nudging them to search or list workspace files instead of burning turn budgets.
+  - **Request-Shape Router**: Identifies question, build, or save-result targets and guides model output to the needed deliverable format.
 
 ## Quick start
 
