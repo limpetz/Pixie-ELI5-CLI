@@ -13,6 +13,7 @@ import {
   looksLikeCompletionSummary,
   looksLikeFakeToolResponse,
   looksLikeGiveUp,
+  looksLikeApologyOrStall,
   claimedWriteFiles,
   classifyRequestShape,
   looksLikeAnswered,
@@ -281,6 +282,19 @@ check("explicit Answer line", looksLikeAnswered("I read the three files.\nAnswer
 check("'the answer is' statement", looksLikeAnswered("The answer is riddle 2."), true);
 check("'it is file 2' counts", looksLikeAnswered("It is file 2."), true);
 check("summary without answer is not answered", looksLikeAnswered("What I did:\n- Read the riddle files"), false);
+check("apology after Answer line is not answered", looksLikeAnswered("Answer: I'm sorry, but none of the files mention a wizard."), false);
+check("cannot find after Answer line is not answered", looksLikeAnswered("Answer: I cannot find the riddle files."), false);
+
+/* ── apology-or-stall detector (after tool not-found error) ── */
+console.log("looksLikeApologyOrStall detector:");
+check("detects eval-#14 apology-without-action", looksLikeApologyOrStall("I'm sorry… Let's try listing all the files instead"), true);
+check("detects could not find question back to user", looksLikeApologyOrStall("I couldn't find any files named 'riddles'. Did you mean something else? What should I look for instead?"), true);
+check("detects plain apology stem", looksLikeApologyOrStall("I apologize, but none of the files mention a wizard."), true);
+check("detects sorry cannot find variant", looksLikeApologyOrStall("Sorry, I cannot find riddle1.txt."), true);
+check("detects apology prefixed with Answer:", looksLikeApologyOrStall("Answer: I'm sorry, but none of the files mention a wizard."), true);
+check("plain valid answer is not an apology", looksLikeApologyOrStall("The answer is riddle 2."), false);
+check("explicit Answer line is not an apology", looksLikeApologyOrStall("Answer: 2"), false);
+check("normal completion summary is not an apology", looksLikeApologyOrStall("What I did:\n- Read riddle2.txt\n\nTry it yourself:\n- Ask about other characters"), false);
 
 console.log("saveTargetFile:");
 check("finds the destination file", saveTargetFile("read the number in code.txt, double it, and save the result in answer.txt"), "answer.txt");

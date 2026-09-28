@@ -80,6 +80,8 @@ export async function runTurn(
   let fakeResponseNudged = false;
   let fakeWriteNudged = false;
   let giveUpNudges = 0;
+  let apologyNudges = 0;
+  let lastToolNotFound = false;
   let keepGoingNudged = false;
   let temp0Retry = false;
   const toolsUsed = new Set<string>();
@@ -166,6 +168,27 @@ export async function runTurn(
           content: `Your summary says '${claimed[0]}' was written, but no write actually happened. Use write_file to create '${claimed[0]}' with the correct content now, then give your summary.`,
         });
         logger.write({ type: "nudge", kind: "fake-write", trigger: content.slice(0, 200) });
+        continue;
+      }
+      // Apology-without-action: the previous tool call failed because a
+      // path or file was not found, and instead of calling list_files/search_files
+      // to find what actually exists, the model stalled with an apology,
+      // a question back to the user, or narrative planning ("I'm sorry... Let's
+      // try listing all files instead") with zero tool calls. Push
+      // deterministically to call tools before the shape router burns its budget
+      // or treats the apology as an answer.
+      if (!wroteAnyFile && toolRounds > 0 && lastToolNotFound && looksLikeApologyOrStall(content) && apologyNudges < 2) {
+        apologyNudges++;
+        temp0Retry = true;
+        messages.push({ role: "assistant", content });
+        messages.push({
+          role: "user",
+          content:
+            apologyNudges === 1
+              ? "Do not apologize or explain in text. Call list_files (no path) or search_files now to find what actually exists in the workspace, then continue."
+              : "Call a tool now: use list_files with no path to see the files in the workspace.",
+        });
+        logger.write({ type: "nudge", kind: "apology-not-found", trigger: content.slice(0, 200) });
         continue;
       }
       // ── Shape-aware nudges: push the step this request is actually missing ──
@@ -283,6 +306,9 @@ export async function runTurn(
     messages.push(assistantMsg);
     logger.write({ type: "assistant_tool_calls", content, toolCalls });
 
+    let hadNotFound = false;
+    let hadFound = false;
+
     for (const call of toolCalls as ToolCallRequest[]) {
       let args = call.args;
       let approved = true;
@@ -311,6 +337,11 @@ export async function runTurn(
       if ((call.name === "write_file" || call.name === "edit_file" || call.name === "delete_file") && result.ok) {
         writtenPaths.add(String(args.path ?? "").toLowerCase());
       }
+      if (result.ok) {
+        hadFound = true;
+      } else if (/not found/i.test(result.output)) {
+        hadNotFound = true;
+      }
       if (result.output.startsWith("NEEDS_APPROVAL: ")) {
         const command = result.output.slice("NEEDS_APPROVAL: ".length);
         const ok = hooks.approveBash ? await hooks.approveBash(command) : false;
@@ -321,12 +352,21 @@ export async function runTurn(
           continue;
         }
         const executed = executeTool(cfg.workspace, call.name, { ...args, command }, { autoApproveBash: true });
+        if (executed.ok) {
+          hadFound = true;
+        } else if (/not found/i.test(executed.output)) {
+          hadNotFound = true;
+        }
         messages.push({ role: "tool", content: executed.output, toolCallId: call.id, name: call.name });
         logger.write({ type: "tool_result", name: call.name, ok: executed.ok, output: executed.output });
         continue;
       }
       messages.push({ role: "tool", content: result.output, toolCallId: call.id, name: call.name });
       logger.write({ type: "tool_result", name: call.name, ok: result.ok, output: result.output });
+    }
+
+    if (toolCalls.length > 0) {
+      lastToolNotFound = hadNotFound && !hadFound;
     }
 
     toolRounds++;
@@ -427,6 +467,21 @@ export function claimedWriteFiles(text: string): string[] {
 }
 
 /**
+ * True when the model emits an apology, stall, or conversational refusal in
+ * prose instead of calling tools (e.g. "I'm sorry... Let's try listing all files",
+ * "I couldn't find any files named 'riddles'. What should I look for?").
+ * Exported for selftests.
+ */
+export function looksLikeApologyOrStall(text: string): boolean {
+  const t = text.replace(/^answer\s*:\s*/i, "").trim();
+  if (/^(?:i('?m| am) sorry|sorry|i apologize)\b/i.test(t)) return true;
+  if (/\b(?:couldn'?t find|unable to find|cannot find|can'?t find|no files? found|not found)\b/i.test(t)) return true;
+  if (/\b(?:let'?s try|let us try|what should i (?:look for|do)|did you mean)\b/i.test(t)) return true;
+  if (/\b(?:could you (?:please )?provide|please clarify|please provide)\b/i.test(t)) return true;
+  return false;
+}
+
+/**
  * Broad request-shape classifier used to pick the right nudge.
  * Three shapes matter for the nudges:
  *  - "question"    → the deliverable is a REPLY ("which file is it?")
@@ -475,7 +530,14 @@ export function classifyRequestShape(userInput: string): RequestShape {
  */
 export function looksLikeAnswered(text: string): boolean {
   const t = text.trim();
-  if (/^answer\s*:/im.test(t)) return true;
+  const m = t.match(/^answer\s*:\s*(.*)$/im);
+  if (m) {
+    const after = m[1].trim();
+    if (/^(?:i('?m| am) sorry|sorry|i apologize|i cannot|i can't|there are no)\b/i.test(after)) {
+      return false;
+    }
+    return true;
+  }
   if (/\bthe answer is\b/i.test(t)) return true;
   if (/\b(it('| i)?s|file|number|riddle)\s*#?\s*\d+\b/i.test(t)) return true;
   return false;
